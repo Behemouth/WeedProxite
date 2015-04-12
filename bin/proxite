@@ -1,0 +1,8 @@
+#!/bin/bash
+
+SELF_PATH=`dirname $(realpath "$0")`;
+ROOT=`realpath "$SELF_PATH/../"`;
+
+export NODE_PATH="$ROOT/..:$ROOT/node_modules/:$NODE_PATH";
+
+node $ROOT/bin/cmd.js "$@"
