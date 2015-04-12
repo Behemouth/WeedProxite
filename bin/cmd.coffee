@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 fs = require 'fs'
 http = require 'http'
 WeedProxite = require '../'
