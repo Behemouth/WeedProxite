@@ -1,6 +1,23 @@
 # Miscellaneous Util
 
+_OBJECT_ID_ = '_INTERNAL_OBJECT_ID_WeedProxite:misc_'
+
 misc =
+  id: (object) ->
+    if typeof object=='object' || typeof object=='function'
+      if object.hasOwnProperty _OBJECT_ID_
+        return object[_OBJECT_ID_]
+      else
+        return (object[_OBJECT_ID_] = misc.guid())
+    else
+      return typeof object + ':'+object
+  guid: () ->
+    ((+ new Date).toString(36).slice(2) +
+     ((Math.random()*1e8)|0).toString(36) ).slice(0,10).toUpperCase()
+
+  capitalize: (s)->
+    s.replace /\b[a-z]/g,(c)-> c.toUpperCase()
+
 
   ###
   Repeat s: String n: Int times
@@ -69,6 +86,8 @@ misc =
     newObj = Object.create obj
     newObj[key] = value for own key,value of ext
     return newObj
+
+
 
 
 module.exports = misc

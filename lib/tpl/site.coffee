@@ -1,15 +1,16 @@
 #!/usr/bin/env coffee
+WeedProxite = require('WeedProxite')
+Site = WeedProxite.Site
+misc = WeedProxite.misc
 
-Site = require('WeedProxite').Site;
-
-run = ()->
+main = (host,port)->
   site = new Site(__dirname)
-  console.log("Server running...")
-  site.listen(1984)
+  site.run(host,port)
+  return site
 
 
-exports.run = run;
+exports.main = main
 
-run() if require.main == module
+main() if require.main == module
 
 

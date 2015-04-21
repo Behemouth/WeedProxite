@@ -1,8 +1,18 @@
 #!/bin/bash
 
-SELF_PATH=`dirname $(realpath "$0")`;
-ROOT=`realpath "$SELF_PATH/../"`;
+CUR_DIR=`dirname $(realpath "$0")`;
+LIB_ROOT=`realpath "$CUR_DIR/../"`;
+export NODE_PATH="$LIB_ROOT/..:$LIB_ROOT/node_modules/:$NODE_PATH";
 
-export NODE_PATH="$ROOT/..:$ROOT/node_modules/:$NODE_PATH";
 
-node $ROOT/bin/cmd.js "$@"
+cd $LIB_ROOT;
+export PATH="$(npm bin):$PATH";
+cd -;
+
+if echo "$@"|grep -e '--debug';then
+  nodemon --watch "$LIB_ROOT" --ignore "$LIB_ROOT/lib/tpl/" -e js "$LIB_ROOT/bin/cmd.js" "$@"
+else
+  node "$LIB_ROOT/bin/cmd.js" "$@"
+fi;
+
+

@@ -8,12 +8,20 @@ class Config
   # e.g. http://www.example.com
   # @required
   upstream: ""
-  upstreamDefaultCharset: "UTF-8"
+  upstreamDefaultCharset: ""
+
+  # Override HTTP Cache Control header
+  # See: https://www.fastly.com/blog/stale-while-revalidate/
+  cacheControl:{
+    maxAge: 60
+    staleIfError: 86400
+    staleWhileRevalidate: 600
+  }
 
   texts:{
     title: "Mirror Site",
-    loading: "Loading",
-    if_website_fails: "XXX"
+    loading: "Loading...",
+    if_website_fails: "If the website fails to load, you may be able to find another mirror URL here:"
   }
 
   # Default timeout in miliseconds
@@ -50,6 +58,9 @@ class Config
   # Enable cookie on this mirror site
   enableCookie: false
 
+  # Enable HTML5 applicationCache
+  enableAppcache:true
+
 
   ###
   Path reserved as  WeedProxite API: /-proxite-/$action/$url
@@ -76,7 +87,9 @@ class Config
   ###
   constructor: (config) ->
     @allowHosts = []
-    (this[key] = value if key[0] != '_') for own key, value of config
+    for own key, value of config
+      if key[0] != '_' && typeof this[key]!='function'
+        this[key] = value
 
     @upstream = @upstream.slice(0,-1) if @upstream.slice(-1) =='/'
 
@@ -92,13 +105,17 @@ class Config
     ([host,port] = host.split ':') if (misc.suffixOf ':80',host) || (misc.suffixOf ':443',host)
     !!@_allowHostsMap.hasOwnProperty host
 
+  isUpstreamHost: (host) -> host == @_upstreamHost
+
   isProxyAPI: (urlpath) -> misc.prefixOf @api,urlpath
 
-  toJSON: () ->
-    ignore = {baseUrlsFile:1,host:1,port:1}
+  toClient: () ->
+    ignore = {baseUrlsFile:1,host:1,port:1,root:1}
     a = {}
-    (a[k] = v if !(ignore[k] || k[0]=='_')) for own k,v of this
-    return JSON.stringify(a)
+    for k,v of this
+      if !ignore[k] && k[0]!='_' && typeof this[k]!='function'
+        a[k] = v
+    return a
 
 
 

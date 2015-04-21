@@ -5,98 +5,107 @@
 <html>
 <% } %>
 <head>
-<% if (config.charset) { %>
 <meta charset="<%= config.charset %>" />
 <meta http-equiv="Content-Type" content="text/html; charset=<%= config.charset %>" />
-<% } %>
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
 <title><%= config.texts.title %></title>
 </head>
 <body>
-  <div id="rwbTip_JUST_MAGIC_BIT">
-    <style>
-      #rwbTip_JUST_MAGIC_BIT p {
-        text-align: center;
-      }
-      #rwbTip_JUST_MAGIC_BIT p.warning  {
-        font-weight:bold;
-        color:red;
-        text-align:center;
-        line-height:200%;
-      }
-      #rwbTip_JUST_MAGIC_BIT .loading {
-        margin:12px auto;
-        text-align:center;
+<div id="WeedProxiteTip_JUST_MAGIC_BIT">
+  <style>
+    #WeedProxiteTip_JUST_MAGIC_BIT p {
+      text-align: center;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT p.warning  {
+      font-weight:bold;
+      color:red;
+      text-align:center;
+      line-height:200%;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT .loading {
+      margin:12px auto;
+      text-align:center;
 
-      }
-      #rwbTip_JUST_MAGIC_BIT .loading img {
-        width:64px;
-        height:64px;
-      }
-      #rwbTip_JUST_MAGIC_BIT ul {
-        border: thin solid #ddd;
-        margin: auto;
-        padding: 5px;
-        width: 400px;
-      }
-      #rwbTip_JUST_MAGIC_BIT li {
-        margin-left: 50px;
-        line-height:140%;
-      }
-      #rwbTip_JUST_MAGIC_BIT h1 {
-        color: #aaa;
-        text-align: center;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top {
-        color: #222;
-        padding: 5px;
-        text-align: center;
-        background:white;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top .loading,
-      #rwbTip_JUST_MAGIC_BIT.top p.warning  {
-        display:none;
-      }
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT .loading img {
+      width:64px;
+      height:64px;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT ul {
+      border: thin solid #ddd;
+      margin: auto;
+      padding: 8px;
+      display: table;
+      padding-right: 2em;
+      min-width: 300px;
+      width: auto;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT li {
+      margin-left: 50px;
+      line-height:140%;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT h1 {
+      color: #aaa;
+      text-align: center;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top {
+      color: #222;
+      padding: 5px;
+      text-align: center;
+      background:white;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top .loading,
+    #WeedProxiteTip_JUST_MAGIC_BIT.top p.warning  {
+      display:none;
+    }
 
-      #rwbTip_JUST_MAGIC_BIT.top div * {
-        display:inline;
-        font-size:12px;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top div .title {
-        display:none;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top div ul {
-        border:none;
-        padding:0;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top div ul li {
-        margin:0;
-      }
-      #rwbTip_JUST_MAGIC_BIT.top div ul li:first-child::after {
-        content:",";
-      }
-    </style>
-    <div>
-      <p class="title"><%= config.texts.loading %></p>
-      <h1 class="title"><%= config.texts.title %></h1>
+    #WeedProxiteTip_JUST_MAGIC_BIT.top div * {
+      display:inline;
+      font-size:12px;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top div .title {
+      display:none;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top div ul {
+      border:none;
+      padding:0;
+      margin:0;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top div ul li {
+      margin:0;
+    }
+    #WeedProxiteTip_JUST_MAGIC_BIT.top div ul li:first-child::after {
+      content:",";
+    }
+  </style>
+  <div>
+    <p class="title"><%= config.texts.loading %></p>
+    <h1 class="title"><%= config.texts.title %></h1>
+    <% if (config.alt_url_collections) { %>
       <p><%= config.texts.if_website_fails %></p>
       <ul>
-        <% if (config.alt_url_collections) { %>
-          <% config.alt_url_collections.forEach(function (alt_url_collection) { %>
-          <li><a href="<%= alt_url_collection %>" target="_blank">
-            <%= alt_url_collection %>
-          </a></li>
-          <% }); %>
-        <% } %>
+        <% config.alt_url_collections.forEach(function (alt_url_collection) { %>
+        <li><a href="<%= alt_url_collection %>" target="_blank">
+          <%= alt_url_collection %>
+        </a></li>
+        <% }); %>
       </ul>
-      <p class="warning" id="rwbTip_JUST_MAGIC_BIT_warning"></p>
-      <p class="loading"><img width="64" height="64" src="<%= config.api + 'static/spinner.gif' %>" alt="Page Loading" /></p>
-    </div>
+    <% } %>
+
+    <p class="warning" id="WeedProxiteTip_JUST_MAGIC_BIT_warning"></p>
+    <p class="loading"><img width="64" height="64" src="<%= config.api + 'static/spinner.gif' %>" alt="Page Loading" /></p>
   </div>
-  <script>
-    var _WeedProxiteConfig_ = <%- JSON.stringify(config) %>;
-  </script>
-  <script src="<%= config.api + 'static/bundle.js' %>"></script>
-  <%- config.html_body_appendix %>
+</div>
+<%- config.html_body_appendix %>
+<script>
+  var _config = <%- JSON.stringify(config).replace(/<\/script>/ig,'<\\/script>') %>;
+</script>
+<script src="<%= config.api + 'static/bundle.js' %>"></script>
+<script>
+  var client = new WeedProxite.Client(_config);
+  client.run();
+</script>
+
+
 </body>
 </html>

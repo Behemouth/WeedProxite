@@ -50,14 +50,14 @@ class Middleware
   Just like what `connect` did,for compatible purpose
   ###
   mount: false
-
   route: ''
+  isErrorHandler: false
 
   ###
   @param {Object} options extend to Middleware instance property
   ###
   constructor: (options) ->
-    (this[key]=value if key[0]!= '_') for own key,value of options
+    this[key]=value for own key,value of options
 
     if @mime != '*'
       @_mimeRegex = if @mime instanceof RegExp
@@ -103,14 +103,14 @@ class Middleware
 
   ###
   After upstream response default handler,you can alter upstream response before send to client user.
-  This param order is designed to easy reuse `conntect` middlewares like `body-parser`
+  This param order is designed to easy reuse `connect` middlewares like `body-parser`
   For example:
     server.use({after:bodyParser.text({type:"text/html"})}) // remember to specify `type`
-  @param {IncomingMessage} proxyRes get from proxyRequest.on('response'), extended with BodyAccesor
+  @param {IncomingMessage} proxyRes get from proxyRequest.on('response')
   @param {ServerResponse} res Origin response to client
   @param {Function(err)} next As async return/continuation,err param see finalhandler doc
   @param {ClientRequest} proxyReq return value by http.request
-  @param {IncomingMessage} req Origin request from client, extended with BodyAccesor
+  @param {IncomingMessage} req Origin request from client
   ###
   after: (proxyRes,res,next,proxyReq,req) -> next()
 
@@ -129,15 +129,13 @@ class Middleware
         fail = true
         break
 
-    accept = options.headers.accept + ''
-    fail = true if @mime != '*' && !~accept.indexOf('*/*') && !@_mimeRegex.test(accept)
+    return !fail && @match.apply(this,arguments)
 
-    return false if fail
-    return @match.apply(this,arguments)
 
-  _isErrorHandler: false
 
   _before:  (req,res,next,options) ->
+    accept = req.headers.accept || ''
+    return next() if @mime != '*' && !~accept.indexOf('*/*') && !@_mimeRegex.test(accept)
     @before.apply(this,arguments)
 
 

@@ -10,7 +10,7 @@ export NODE_PATH="$ROOT/lib/:$ROOT/node_modules/:$NODE_PATH";
 
 case "$1" in
   'watch')
-    coffee --watch --map --compile "$ROOT";
+    coffee --watch --compile "$ROOT";
     ;;
   'build')
     browserify --debug "$ROOT/lib/Client.js" -o "$ROOT/lib/tpl/static/bundle.js";
