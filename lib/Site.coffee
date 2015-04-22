@@ -127,7 +127,7 @@ forbidden = (res, msg = '') ->
 ###
 Supported Proxy API Actions, i.e. /-proxite-/$action/
 ###
-supportedProxyActions = new Set(['css','raw','iframe','static','status','manifest.appcache'])
+supportedProxyActions = new Set(['raw','iframe','static','status','manifest.appcache'])
 
 PROXITE_XHR_HEADER = 'x-proxite-xhr' # indicate request issued by WeedProxite XMLHttpRequest wrapper
 matchRewriteCond = (req) ->
@@ -195,7 +195,7 @@ Site.middleware =
       mime:'text/css',
       match: matchRewriteCond
       after: (proxyRes,res,next,proxyReq,req) ->
-        proxyRes.body = rewrite.css(proxyRes.body,req.baseRoot,config)
+        proxyRes.body = rewrite.css(proxyRes.body,req.proxyTarget.origin,config)
         next()
     }
 
@@ -213,7 +213,7 @@ Site.middleware =
         configData = config.toClient()
         body = proxyRes.body
         configData.pageContent = body
-        configData.baseRoot = req.baseRoot
+        configData.proxyTarget = req.proxyTarget
         configData.enableAppcache = false if req.proxyAction == 'iframe'
         configData.charset = proxyRes.charset || config.upstreamDefaultCharset
         body = config._tpl.main({config:configData})
@@ -287,15 +287,15 @@ Site.middleware =
         if action && !supportedProxyActions.has(action)
           return badRequest(res,"Invalid Proxy API Action: #{action};\n URL: #{req.url}" )
 
-        target = url.parse reverted.target
-        if !config.allowHost target.host
+        target = url.parse(reverted.url)
+        if !reverted.allowed
           return forbidden(res, 'Forbidden Host: ' + target.host)
-        if !reverted.defaultUpstream && config.isUpstreamHost target.host
+        if !reverted.isDefault && config.isUpstream target.host
           # redirect "/http://default-upstream-host/path/" to "/path/"
           res.writeHead(301,{location: target.path})
           return res.end()
 
-        req.baseRoot = reverted.baseRoot
+        req.proxyTarget = reverted
 
         origin = req.headers.origin || req.headers.referer
         req.origin = if origin then /^https?:\/\/[^\/]+/.exec(origin)?[0] else req.protocol+'://'+req.host
@@ -320,7 +320,7 @@ Site.middleware =
         location = proxyRes.headers.location
 
         return next() unless location # TODO: parse html refresh
-        proxyRes.headers.location  = rewrite.url location,req.baseRoot,config
+        proxyRes.headers.location  = rewrite.url location,req.proxyTarget.origin,config
         next()
     }
 

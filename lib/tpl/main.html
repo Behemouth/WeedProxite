@@ -13,6 +13,7 @@
 <body>
 <div id="WeedProxiteTip_JUST_MAGIC_BIT">
   <style>
+    #WeedProxiteTip_JUST_MAGIC_BIT br {clear:both;float:none;}
     #WeedProxiteTip_JUST_MAGIC_BIT p {
       text-align: center;
     }
@@ -69,7 +70,6 @@
     #WeedProxiteTip_JUST_MAGIC_BIT.top div ul {
       border:none;
       padding:0;
-      margin:0;
     }
     #WeedProxiteTip_JUST_MAGIC_BIT.top div ul li {
       margin:0;
@@ -94,6 +94,7 @@
 
     <p class="warning" id="WeedProxiteTip_JUST_MAGIC_BIT_warning"></p>
     <p class="loading"><img width="64" height="64" src="<%= config.api + 'static/spinner.gif' %>" alt="Page Loading" /></p>
+    <br class="clear" />
   </div>
 </div>
 <%- config.html_body_appendix %>

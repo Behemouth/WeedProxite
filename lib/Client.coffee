@@ -14,9 +14,9 @@ class Client
 
   run:() ->
     html = @config.pageContent
-    html = rewrite.html(html,@config.baseRoot,@config)
+    html = rewrite.html(html,@config.proxyTarget.origin,@config)
     if @config.showMirrorNotice && @tipHTML
-      html = html.replace /(<body\b[^>]*>)/i,"$1"+@tipHTML
+      html = html.replace /(<body\b[^>]*>)/ig,"$1"+@tipHTML
 
     writeDocument = ()->
         document.open()
@@ -32,5 +32,6 @@ class Client
 
 module.exports = Client
 
-if process.browser
+#if process.browser
+if typeof window == 'object' # browserify will add fat process.js
   window.WeedProxite = {Client:Client}
