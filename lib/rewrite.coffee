@@ -4,16 +4,14 @@ Content rewrite
 misc = require './misc'
 HTMLRewriter = require './HTMLRewriter'
 
-parseUrl = (url) -> # parse full uri, return [scheme,host,path]
-  [_,scheme,host,path] = /^(https?):\/\/([\w\d.:-]+)(\/.*)?/i.exec(url) || []
-  scheme ?= ''; host ?= ''; path ?= '/';
-  return [scheme,host,path];
+parseUrl = misc.parseUrl
 
 
 rewrite =
   ###
   Transform path to proxy url
   @param {String} path     e.g. 'http://upstream.com/' or  '//upstream.com/' or relative '../'
+
   either empty string indicate default upstream origin
   or "http://some-allowed-host"
   @param {String} origin
@@ -25,7 +23,7 @@ rewrite =
     # "//example.com/" is valid but url.parse not handle correctly
     u = 'http:'+u if u.slice(0,2) == '//'
     if /^https?:\//i.test u
-      [_,host,path] = parseUrl u
+      {scheme,host,path} = parseUrl u
       if config.allowHost host
         return if config.isUpstreamHost host then path else '/' + u
     else if u[0]=='/' and origin
@@ -54,7 +52,7 @@ rewrite =
       url = '/' + parts.slice(1).join '/'
 
     if /^\/https?:/i.test url
-      [scheme,host,path] = parseUrl url
+      {scheme,host,path} = parseUrl url.slice(1)
       origin = scheme + '://' + host
       allowed = config.allowHost host
       url = url.slice 1
@@ -76,11 +74,13 @@ rewrite =
     css = css.replace /@import\s+['"]([^*'"]+)['"]/ig,replace
     return css
 
+  # @return {HTMLRewriter}
   html:(html,origin,config) ->
     baseOrigin = origin
     rewriteBase = (href) -> # rewrite base tag first
                       u = rewrite.url href,origin,config
-                      if /^https?:\/\//i.test u # should not proxy
+                      # should not proxy if it has <base href="http://another-domain.com/"/>
+                      if /^https?:\/\//i.test u
                         baseOrigin = ''
                       return u
 
@@ -93,19 +93,32 @@ rewrite =
     https://images.weserv.nl/?url=www.google.com/images/srpr/logo11w.png
     ###
     rt = new HTMLRewriter(html)
+    rt.baseOrigin = baseOrigin
     reUrl = (src)->
       rewrite.url src,baseOrigin,config
-    tags = 'img src|object data|applet src|embed src|audio src|video src|source src|track src|a href|iframe src|frame src|script src|link href|area href| background'
+    tags = 'img src|object data|applet src|iframe src|frame src|embed src|audio src|video src|source src|track src|a href|script src|link href|area href| background'
 
     for t in tags.split('|')
       [tag,attr] = t.split(' ')
       rt.rule({tag:tag,attr:attr,rewrite:reUrl})
 
+    ###
+    TODO: Pass current path to rewrite.url
+    iframeBase = config.api.slice(1)+'iframe/'+baseOrigin
+    reframe = (url) -> rewrite.url url,iframeBase,config
+    rt.rule({tag:'iframe',attr:'src',rewrite:reframe})
+    rt.rule({tag:'frame',attr:'src',rewrite:reframe})
+    ###
+
     reCSS = (css)-> rewrite.css css,baseOrigin,config
+    rewriteRefresh = (content,tag) ->
+      return content unless /http-equiv=['"]?refresh['"]?/i.test tag
+      return content.replace  /(;\s*url=)([^<>'"]+)/ig,
+                              (_,a,url) -> return a + rewrite.url(url,baseOrigin,config)
     rt.rule({tag:'style',rewrite:reCSS})
     rt.rule({attr:'style',rewrite:reCSS})
-    html = rt.result()
-    return html
+    rt.rule({tag:'meta',attr:'content',rewrite:rewriteRefresh})
+    return rt
 
 
 module.exports = rewrite

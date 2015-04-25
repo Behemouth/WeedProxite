@@ -12,7 +12,9 @@ md5 = require 'MD5'
 ejs = require 'ejs'
 querystring = require 'querystring'
 misc = require './misc'
-
+getRawBody = require('raw-body')
+LRU = require("lru-cache")
+debug = require('debug')('WeedProxite:Site')
 
 
 class Site extends Server
@@ -40,15 +42,14 @@ class Site extends Server
   ###
   constructor: (p) ->
     @root = p
-    config = require(path.join(p,Config.filename))
-    if config.baseUrlFile
-      baseUrlFile = if @root && config.baseUrlFile[0]!='/'
-                      path.join(@root,config.baseUrlFile)
-                    else
-                      config.baseUrlFile
-      baseUrlList = fs.readFileSync(baseUrlFile,{encoding:"utf-8"})
-      config.baseUrlList = misc.trim(baseUrlList).split(/\s+/g)
-      delete config.baseUrlFile
+    config = require(path.join(p,'config.js'))
+    if config.mirrorLinksFile
+      mirrorLinksFile = if @root && config.mirrorLinksFile[0]!='/'
+                          path.join(@root,config.mirrorLinksFile)
+                        else
+                          config.mirrorLinksFile
+      mirrorLinks = fs.readFileSync(mirrorLinksFile,{encoding:"utf-8"})
+      config.mirrorLinks = misc.trim(mirrorLinks).split(/\s+/g)
 
     @config = new Config(config)
     @config.root = @root
@@ -67,12 +68,78 @@ class Site extends Server
       'rewriteCSS','rewriteHTML','ignoreHeaders','xforward']
     this[mw]() for mw in defaultMiddlewares
 
+
+    if @config.useMemcache
+      @_cache = LRU({
+                      max:300,
+                      maxAge:1000*60*60 # one hour
+                    })
+      @useCache(@_cache)
+
+
   run: (host,port)->
     host ?= @config.host
     port ?= @config.port
     @listen(port,host)
     console.log "Site serving on #{host}:#{port}..."
 
+  ###
+  Use simple cache
+  ###
+  useCache: (cache)->
+    # throw new Error('Not Implemented yet!')
+    config = @config
+    onRes = (proxyRes,res) ->
+              return unless res.cacheKey && !proxyRes.shouldNotCache
+              debug('Set cache:',res.cacheKey)
+              item = {
+                body:proxyRes.body,
+                statusCode:proxyRes.statusCode,
+                headers:proxyRes.headers
+              }
+
+              item = JSON.stringify item
+              cache.set res.cacheKey,item
+
+    @on 'response',onRes
+    return @use {
+      method:'GET'
+      before:(req,res,next,opt) =>
+        h = opt.headers
+        key = [ opt.protocol,opt.host,opt.path,
+                h.cookie,h[(h.vary || '').toLowerCase()],
+                h['accept'],h['accept-encoding'],h['accept-language']
+              ]
+
+        key = key.join(',')
+        res.cacheKey = key
+        result = cache.get(key)
+        if result
+          debug('Cache hit:',key)
+          result = JSON.parse(result)
+          res.writeHead(result.statusCode,result.headers)
+          res.end(new Buffer(result.body.data))
+          return
+
+        return next()
+      after:(proxyRes,res,next)=>
+        if proxyRes.statusCode >= 300
+          proxyRes.shouldNotCache = true
+          return next()
+
+        return next() if proxyRes.body
+        setBody = (err,body) ->
+                    if err
+                      proxyRes.shouldNotCache = true
+                      return next()
+
+                    proxyRes.body = body
+                    next()
+
+
+        getRawBody  proxyRes, {limit:'2mb'},setBody
+
+    }
 
   _initTemplates: () ->
     m = {
@@ -93,12 +160,13 @@ copyFolder = (from,to,override) ->
       fs.mkdirSync target if !fs.existsSync(target)
       copyFolder src,target,override
     else
-      if !fs.existsSync(target) || (override && path.basename(target)!='config.js')
+      name = path.basename(target)
+      if !fs.existsSync(target) || (override && name!='config.js' && name!='site.js')
         copyFile src,target
 
 copyFile = (src,target) ->
   # skip coffee script source code
-  return if /\.coffee$/i.test src
+  return if /\.coffee$|\.js\.map$/i.test src
   data = fs.readFileSync src
   fs.writeFileSync target,data
 
@@ -203,15 +271,19 @@ Site.middleware =
     config = @config
     return @use {
       mime:'text/html',
-      match: matchRewriteCond
+      match: (req) ->
+        return false if !~(req.headers.accept || '').indexOf('text/html')
+        return matchRewriteCond.apply(this,arguments)
+
       after: (proxyRes,res,next,proxyReq,req) ->
         headers = proxyRes.headers
-        delete headers['expires']
-        delete headers['last-modified']
+        #delete headers['expires'] # for firexo
+        #delete headers['last-modified']
         delete headers['cache-control'] # use default cache control
         delete headers['pragma'] if headers['pragma']=='no-cache'
         configData = config.toClient()
         body = proxyRes.body
+        configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1]
         configData.pageContent = body
         configData.proxyTarget = req.proxyTarget
         configData.enableAppcache = false if req.proxyAction == 'iframe'
@@ -287,18 +359,21 @@ Site.middleware =
         if action && !supportedProxyActions.has(action)
           return badRequest(res,"Invalid Proxy API Action: #{action};\n URL: #{req.url}" )
 
+
         target = url.parse(reverted.url)
         if !reverted.allowed
           return forbidden(res, 'Forbidden Host: ' + target.host)
-        if !reverted.isDefault && config.isUpstream target.host
+        if !reverted.isDefault && config.isUpstreamHost target.host && !action
           # redirect "/http://default-upstream-host/path/" to "/path/"
           res.writeHead(301,{location: target.path})
           return res.end()
 
         req.proxyTarget = reverted
 
+
+
         origin = req.headers.origin || req.headers.referer
-        req.origin = if origin then /^https?:\/\/[^\/]+/.exec(origin)?[0] else req.protocol+'://'+req.host
+        req.origin = (origin && /^https?:\/\/[^\/]+/.exec(origin)?[0]) || (req.protocol+'://'+req.headers.host)
 
         opt.headers.host = opt.host = target.host
         opt.protocol = target.protocol
@@ -309,6 +384,14 @@ Site.middleware =
         res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept')
         res.setHeader(k,v) for k,v of secureHeaders
 
+        `var path;` # Holly shit
+        for h in ['origin','referer']
+          v = opt.headers[h]
+          continue unless v
+          {host,path} = url.parse(v)
+          if host == req.headers.host || config.isSelfHost host
+            opt.headers[h] = rewrite.revertUrl(path,config).url
+
         next()
 
       ###
@@ -318,10 +401,9 @@ Site.middleware =
         proxyRes.headers[k]=v for k,v of secureHeaders
 
         location = proxyRes.headers.location
-
-        return next() unless location # TODO: parse html refresh
+        return next() unless location
         proxyRes.headers.location  = rewrite.url location,req.proxyTarget.origin,config
-        next()
+        return next()
     }
 
 Site.prototype[k]=v for k,v of Site.middleware

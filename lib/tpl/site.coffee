@@ -10,7 +10,10 @@ main = (host,port)->
 
 
 exports.main = main
-
-main() if require.main == module
+argv = process.argv
+###
+ Run as `node site.js localhost 8080`
+###
+main(argv[2],argv[3]) if require.main == module
 
 

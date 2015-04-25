@@ -8,7 +8,7 @@ class Config
   # e.g. http://www.example.com
   # @required
   upstream: ""
-  upstreamDefaultCharset: ""
+  upstreamDefaultCharset: "UTF-8"
 
   # Override HTTP Cache Control header
   # See: https://www.fastly.com/blog/stale-while-revalidate/
@@ -18,8 +18,9 @@ class Config
     staleWhileRevalidate: 600
   }
 
+  # Some texts used on mirror landing page
   texts:{
-    title: "Mirror Site",
+    append_title: "|Mirror Site",
     loading: "Loading...",
     if_website_fails: "If the website fails to load, you may be able to find another mirror URL here:"
   }
@@ -35,22 +36,25 @@ class Config
   allowHosts : []
 
   ###
-  Proxy server base url list file path
+  Proxy server alt mirror base url list file path
   each url seperated by newline, url must ends with '/'
-  Default is relative to site root dir
-  If not specified, use request host instead
+
+  mirrorLinksFile: "alt_mirror_urls.txt"
   ###
-  baseUrlsFile: "base_urls.txt"
+  mirrorLinksFile: ""
 
   ###
-  You can specify either `baseUrlsFile` or `baseUrlList`,but can not both of them
+  You can specify either `mirrorLinksFile` or `mirrorLinks`,but can not set both of them
   For example:[
     "http: //proxite.lo.cal/",
-    "http: //localhost/proxite/"
+    "http: //localhost:1984/"
   ]
-  baseUrlList = misc.trim(fs.readFileSync($ROOT+"/base_urls.txt",{encoding:"utf-8"})).split(/\s+/g)
+  mirrorLinks = misc.trim(fs.readFileSync("./alt_mirror_urls.txt",{encoding:"utf-8"})).split(/\s+/g)
   ###
-  baseUrlList: []
+  mirrorLinks: []
+
+  # Used on mirror landing page and tip
+  mirrorCollectionLinks:null
 
   # Display a message to notice users this is a mirror site
   showMirrorNotice: true
@@ -60,6 +64,8 @@ class Config
 
   # Enable HTML5 applicationCache
   enableAppcache:true
+
+  useMemcache:false
 
 
   ###
@@ -80,7 +86,8 @@ class Config
   # Proxy server listen port
   port: 1984
 
-  @filename: 'config.js'
+  # Use https server,pass these options to https.createServer(opts)
+  httpsOptions: null
 
   ###
   @param {Object} config
@@ -93,24 +100,35 @@ class Config
 
     @upstream = @upstream.slice(0,-1) if @upstream.slice(-1) =='/'
 
-    @_upstreamHost = /^https?:\/\/([^\/]+)/.exec(@upstream)[1]
+    @_selfHosts = (misc.parseUrl(url).host for url in @mirrorLinks)
+    @_selfHostsMap = {}
+    for host in @_selfHosts
+      @_selfHostsMap[host.toLowerCase()]=1
+
+    @_upstreamHost = misc.parseUrl(@upstream).host
     @allowHosts.push(@_upstreamHost)
 
     @_allowHostsMap = {}
     for host in @allowHosts
       host = host.toLowerCase()
-      @_allowHostsMap[host] = host
+      @_allowHostsMap[host] = 1
 
   allowHost: (host) ->
-    ([host,port] = host.split ':') if (misc.suffixOf ':80',host) || (misc.suffixOf ':443',host)
+    #([host,port] = host.split ':') if (misc.suffixOf ':80',host) || (misc.suffixOf ':443',host)
     !!@_allowHostsMap.hasOwnProperty host
+
+  # return true if host in baseUrlList or is upstream
+  isSelfHost: (host) ->
+    !!@_selfHostsMap.hasOwnProperty host
+
+
 
   isUpstreamHost: (host) -> host == @_upstreamHost
 
   isProxyAPI: (urlpath) -> misc.prefixOf @api,urlpath
 
   toClient: () ->
-    ignore = {baseUrlsFile:1,host:1,port:1,root:1}
+    ignore = {mirrorLinksFile:1,host:1,port:1,root:1,httpsOptions:1}
     a = {}
     for k,v of this
       if !ignore[k] && k[0]!='_' && typeof this[k]!='function'

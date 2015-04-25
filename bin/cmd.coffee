@@ -10,17 +10,19 @@ program = require 'commander'
 browserify = require 'browserify'
 path = require 'path'
 watch = require 'watch'
+coffeeify = require 'coffeeify'
 LIB_ROOT = path.resolve __dirname+'/../'
-CLIENT_JS = LIB_ROOT + '/lib/Client.js'
+CLIENT_SRC = LIB_ROOT + '/lib/Client.coffee'
 BUNDLE_JS = LIB_ROOT + '/lib/tpl/static/bundle.js'
 misc = WeedProxite.misc
+
 
 exit =  (code) -> process.exit(code)
 
 
 
 enableDestroy = (server) ->
-  #  WTF Server#close()! Node.js sucks! There is no way to force shutdown server!
+  #  WTF Server#close(). There is no other way to force shutdown server!
   connections = {}
 
   server.on 'connection', (conn) ->
@@ -42,18 +44,20 @@ checkSiteRoot = (root) ->
     exit(1)
 
 initSite = (root,opts,cb) ->
+  root ?= process.cwd()
   checkSiteRoot root
   bundleJS = fs.createWriteStream(BUNDLE_JS)
   bundleJS.on 'finish',()->
     Site.init root,opts.override
-    console.log "Init successfully!Override:"+opts.override
+    console.log "Init successfully!Override:"+ (!!opts.override)
     cb && cb()
 
-  browserify(CLIENT_JS).bundle().pipe(bundleJS)
+  browserify(CLIENT_SRC).transform(coffeeify).bundle().pipe(bundleJS)
 
 
 
 runSite = (root,opts) -> # Used nodemon to auto reload server
+  root ?= process.cwd()
   checkSiteRoot root
   site = null
   if opts.debug
@@ -62,11 +66,11 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
       return if /\.coffee$/i.test(f) # skip coffee file
       m.stop() for m in monitors
       console.log "Site reloading..."
-      site._server.destroy() #FKFKFKFKFKFK!!!
+      site._server.destroy()
       site[k]=null for k,v of site
       site = monitors = null
       runSite root,opts
-    initSite root,{override:true},()->
+    initSite root,{override:true,debug:true},()->
       bindMonitor = (monitor)->
         monitors.push monitor
         monitor.on 'changed',onChange
@@ -83,17 +87,16 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 
 
 
-
-
-program.command('init <root>')
+program.command('init [root]')
        .description('Init site, root param is the site root directory')
        .option('--override','If override exist files except config.js')
+       #.option('--debug','Generate debug version bundle.js')
        .action(initSite)
 
 
-program.command('run <root>')
+program.command('run [root]')
        .description('Run site')
-       .option('--debug','In debug mode, copied files in root directory will update automatically')
+       .option('--debug','Server will automatically reload in debug mode')
        .option('--host [host]','Bind host, default is 127.0.0.1')
        .option('--port [port]','Bind port, default is 1984')
        .action(runSite)

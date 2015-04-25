@@ -2,9 +2,18 @@ misc = require './misc'
 
 class HTMLRewriter
   constructor: (html)->
-    @_html = html
+    @html = html
     @_reRules = [] # rewrite attribute value based on regexp
-    @_specialRules = [] # rewrite inner content or script src
+    @_specialRules = [] # rewrite script or style inner content or script src
+    @_replaceRules = []
+
+  ###
+  Similar to html.replace(),but exec after stashed style,script and comments
+  so there is no more interference
+  ###
+  replace: (pattern,substitution) ->
+    @_replaceRules.push [pattern,substitution]
+    return this
 
   ###
   Rewrite tag or attributes
@@ -36,40 +45,50 @@ class HTMLRewriter
     else
       throw new Error('Rewrite element inner content only support script and style tag!')
 
+    return this
 
   # Execute rewrite base on rules,return result
   result:() ->
-    html = @_html
+    html = @html
     # stash comment,style and script
     stashed = {}
     genKey = () -> '###' + misc.guid() + '###'
-    commentRe = /(<!--)([^]*?)(-->)/g
-    styleRe = /(<style\b[^<>]*>)([^]*?)(<\/style>)/ig
-    scriptRe = /(<script\b[^<>]*>)([^]*?)(<\/script>)/ig
-    stash = (_,head,content,tail) ->
+    # Must combine all regex together at one time, otherwise it will match "<script><!--" incorrectly
+    re = /(<!--[^]*?-->)|(<style\b[^<>]*>)([^]*?)(<\/style>)|(<script\b[^<>]*>)([^]*?)(<\/script>)/ig
+    stash = (_,comment,styleHead,styleContent,styleTail,scriptHead,scriptContent,scriptTail) ->
       k = genKey()
+      if comment
+        stashed[k] = [comment]
+        return k
+
+      if styleHead
+        [head,content,tail] = [styleHead,styleContent,styleTail]
+      else
+        [head,content,tail] = [scriptHead,scriptContent,scriptTail]
+
       tail = tail.toLowerCase()
       stashed[tail] ?= {}
       stashed[k] = stashed[tail][k] = [head,content,tail]
       return k
 
-    for re in [commentRe,styleRe,scriptRe]
-      html = html.replace re,stash
+    html = html.replace re,stash
 
-    reRuleRewrite = (_,head,value,tail)-> head + (rule.rewrite value) + tail
+    reRuleRewrite = (whole,head,value,tail)-> head + (rule.rewrite value,whole) + tail
 
     for rule in @_reRules
       html = html.replace rule.re, reRuleRewrite
 
     for rule in @_specialRules
       tail = rule.tail
-      for k,groups of stashed[tail]
+      for k,matched of stashed[tail]
         if rule.re # attr
-          groups[0] = groups[0].replace rule.re,reRuleRewrite
+          matched[0] = matched[0].replace rule.re,reRuleRewrite
         else # rewrite content
-          groups[1] = rule.rewrite(groups[1])
+          matched[1] = rule.rewrite(matched[1])
         break if rule.first
 
+    for rule in @_replaceRules
+      html = html.replace.apply(html,rule)
 
     # recover stashed stuffs
     html = html.replace /###[A-Z0-9]{10}###/g,(k) -> stashed[k].join('')

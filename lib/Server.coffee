@@ -55,8 +55,14 @@ class Server extends EventEmitter
   listen: (port,host) ->
     if @_server
       throw new Error('Server already started!')
-    @_server = http.createServer (req,res) => @_handle(req,res)
-    @_server.setTimeout @timeout
+
+    if @config.httpsOptions
+      @_server = https.createServer @config.httpsOptions,(req,res) => @_handle(req,res)
+    else
+      @_server = http.createServer (req,res) => @_handle(req,res)
+
+    if @_server.setTimeout # old Node.js version like 0.10 https Server doesn't have setTimeout
+      @_server.setTimeout @timeout
     debug('Server listen on '+host+':'+port)
     @_server.listen.apply @_server,arguments
 
@@ -171,7 +177,8 @@ class Server extends EventEmitter
     [hostname,port] = opt.host.split ':'
     (port = if opt.protocol == 'https:' then '443' else '80') if !port
     opt.hostname = hostname; opt.port = port; delete opt.host
-    body = prepareBody(opt)
+    prepareBody(opt)
+    body = opt.body
 
     @emit('proxyRequest',req,res,opt)
     proxyReq = sender.request opt,
@@ -217,16 +224,20 @@ class Server extends EventEmitter
     if error
       @emit('error',error,req,res,proxyReq,proxyRes)
       return @_finalHandle(error,req,res)
-    body = prepareBody proxyRes
+    prepareBody proxyRes
     @emit('response',proxyRes,res,proxyReq,req)
+    body = proxyRes.body
+
     for k,v of proxyRes.headers
       if v # Obsessive! Http Header Must Be Capitalize!
-        res.setHeader(misc.capitalize(k),v)
+        k = misc.capitalize(k)
+        res.setHeader(k,v)
+        proxyRes.headers[k]=v
       else
         res.removeHeader(k)
+        delete proxyRes.headers[k]
 
     @emit('finally',req,res)
-
     res.writeHead(proxyRes.statusCode)
     if body
       res.end(body)
@@ -345,14 +356,13 @@ Server.middleware =
   @param {Object} options extend to Middleware
     Extra options:
     {
-      defaultCharset:"ISO-8859-1",
+      defaultCharset:"UTF-8",
       limit:"2mb" // size limit
     }
   ###
   withTextBody: (opt) ->
     opt ?= {}
-    defaultCharset = (opt.defaultCharset || "ISO-8859-1").toLowerCase()
-    defaultCharset = "utf-8" if defaultCharset=="utf8"
+    defaultCharset = (opt.defaultCharset || "utf-8").toLowerCase()
     rawBody = bodyParser.raw({type:"*/*",limit:opt.limit || "2mb"})
     _match = opt.match
     delete opt.match
@@ -368,11 +378,9 @@ Server.middleware =
         decodeBody = (err)->
           return next(err) if err
           body = proxyRes.body
+          return next() if typeof body == 'string'
           unless Buffer.isBuffer body
             proxyRes.body = ""
-            return next()
-          if defaultCharset == "utf-8"
-            proxyRes.body = body.toString()
             return next()
 
           charset = getCharset proxyRes
@@ -417,10 +425,9 @@ opt.body
 ###
 prepareBody = (opt) ->
   body = opt.body
-
   return unless body?
   if typeof body == 'string'
-    charset = opt.charset || getCharset(opt) || "utf-8"
+    charset = opt.charset || getCharset(opt) || 'utf-8'
     body = encoding.convert(body,charset)
 
   delete opt.headers["content-encoding"]
@@ -438,11 +445,11 @@ getCharset = (req)->
 getCharsetFromBody = (req)->
   ct = req.headers["content-type"]
   return if !ct
-  body = req.body
+  body = req.body # you must set body to string before call this function
   m = null
   if /\btext\/html\b/i.test ct
-    # remove html comments and scripts
-    body = body.replace /<!--[^]*?-->|<script[^>]*>[^]*?<\/script>/ig,""
+    # remove html comments and scripts,styles
+    body = body.replace /<!--[^]*?-->|<script[^>]*>[^]*?<\/script>|<style[^>]*>[^]*?<\/style>/ig,""
     m = /<meta\s+[^>]+\btext\/html;\s+charset=([\w-]+)[^>]*>/i.exec body
     m = /<meta\s+charset=["']?([\w-]+)[^>]*>/i.exec body if !m
   else if /\btext\/css\b/i.test ct
