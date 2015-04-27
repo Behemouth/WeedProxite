@@ -285,11 +285,12 @@ Site.middleware =
         delete headers['pragma'] if headers['pragma']=='no-cache'
         configData = config.toClient()
         body = proxyRes.body
-        configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1]
+        configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1] || config.defaultPageTitle
         configData.pageContent = body
         configData.proxyTarget = req.proxyTarget
         configData.enableAppcache = false if req.proxyAction == 'iframe' || req.method !='GET'
         configData.charset = proxyRes.charset || config.upstreamDefaultCharset
+        configData.json = misc.escapeUnicode(JSON.stringify(configData).replace(/<\/script>/ig,'<\\/script>'))
         body = config._tpl.main({config:configData})
         proxyRes.body = body
         next()

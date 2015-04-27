@@ -10,6 +10,8 @@ class Config
   upstream: ""
   upstreamDefaultCharset: "UTF-8"
 
+  defaultPageTitle:'Page Title'
+
   # Override HTTP Cache Control header
   # See: https://www.fastly.com/blog/stale-while-revalidate/
   cacheControl:{

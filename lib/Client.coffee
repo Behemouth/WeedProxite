@@ -68,12 +68,12 @@ class Client
     markVisisted()
     html = @rewriter.result()
     writeDocument = ()->
-        document.open()
-        document.write(html)
-        document.close()
+                      document.open()
+                      document.write(html)
+                      document.close()
 
     if document.readyState !='complete'
-      window.onload = writeDocument
+      window.onload = ()-> setTimeout writeDocument,100
     else
       setTimeout writeDocument,100
 
@@ -86,6 +86,7 @@ class Client
     return fail()  if isBlocked(@currentMirror)
     request {
       url:url
+      mime:'text/html; charset=' + (_config.charset || _config.upstreamDefaultCharset)
       done:(xhr)=>
         @rewriter.html = xhr.responseText
         @showPage()
@@ -166,6 +167,8 @@ request = (opts)->
   xhr = new XMLHttpRequest
   xhr.open('GET',opts.url,true)
   xhr.setRequestHeader('X-Requested-With','XHR')
+  if opts.mime
+    xhr.overrideMimeType(opts.mime)
   xhr.timeout = opts.timeout || _config.timeout || 30000
   clean = ()->
     xhr.onreadystatechange = noop

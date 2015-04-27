@@ -48,7 +48,7 @@ misc =
   ###
   pads: (s, c, n) ->
     return s if s.length >= n
-    repeats(c, n - s.length) + s
+    misc.repeats(c, n - s.length) + s
 
 
   ###
@@ -98,6 +98,14 @@ misc =
     newObj = Object.create obj
     newObj[key] = value for own key,value of ext
     return newObj
+
+  ###
+  Convert unicode char to unicode escape
+  ###
+  escapeUnicode: (s) ->
+    s.replace /[\u0100-\uFFFF]/g,(c)->
+      return '\\u'+ misc.pads(c.charCodeAt(0).toString(16),'0',4)
+
 
 
 
