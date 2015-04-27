@@ -276,6 +276,8 @@ Site.middleware =
         return matchRewriteCond.apply(this,arguments)
 
       after: (proxyRes,res,next,proxyReq,req) ->
+        return next() if proxyRes.statusCode >=400 || proxyRes.statusCode < 200
+
         headers = proxyRes.headers
         #delete headers['expires'] # for firexo
         #delete headers['last-modified']
@@ -286,7 +288,7 @@ Site.middleware =
         configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1]
         configData.pageContent = body
         configData.proxyTarget = req.proxyTarget
-        configData.enableAppcache = false if req.proxyAction == 'iframe'
+        configData.enableAppcache = false if req.proxyAction == 'iframe' || req.method !='GET'
         configData.charset = proxyRes.charset || config.upstreamDefaultCharset
         body = config._tpl.main({config:configData})
         proxyRes.body = body
@@ -356,7 +358,7 @@ Site.middleware =
         opt.path = opt.path.replace /^([^?]*\/https?:\/)([^\/].+)/i,'$1/$2' # fixDoubleSlash
         reverted = rewrite.revertUrl(opt.path,config)
         action = req.proxyAction = reverted.action
-        if action && !supportedProxyActions.has(action)
+        if action? && !supportedProxyActions.has(action)
           return badRequest(res,"Invalid Proxy API Action: #{action};\n URL: #{req.url}" )
 
 

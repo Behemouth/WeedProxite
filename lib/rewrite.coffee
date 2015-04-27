@@ -44,7 +44,7 @@ rewrite =
   }
   ###
   revertUrl:(p,config) ->
-    origin = ''; action = ''; url = p
+    origin = ''; action = null; url = p
     isDefault = false; allowed = false
     if config.isProxyAPI p
       parts = (p.slice config.api.length).split('/')

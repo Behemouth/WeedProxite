@@ -88,11 +88,11 @@
       <p><%= config.texts.if_website_fails %></p>
       <ul>
         <li>
-        <% config.mirrorCollectionLinks.map(function (collection) { %>
-        <a href="<%= collection %>" target="_blank">
-          <%= collection %>
-        </a>
-        <% }).join('<span class="comma">,</span></li><li>') %>
+        <%-
+        config.mirrorCollectionLinks.map(function (collection) {
+          return '<a href="'+collection +'" target="_blank">' +collection +'</a>'
+        }).join('<span class="comma">,</span></li><li>')
+        %>
         </li>
       </ul>
     <% } %>

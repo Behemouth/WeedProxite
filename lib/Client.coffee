@@ -27,6 +27,12 @@ isInCrossDomainFrame = ()->
 isInFrame = ()->
   return top != self
 
+isFirstVisit = ()->
+  return LS.getItem("visited:"+location.href)!='true'
+
+markVisisted = ()->
+  return LS.setItem("visited:"+location.href,'true')
+
 class Client
   constructor: () ->
     return top.location = self.location if isInCrossDomainFrame()
@@ -54,11 +60,12 @@ class Client
 
   run:() ->
     appCache = window.applicationCache
-    return @showPage() if !appCache || appCache.status==0 || navigator.onLine==false
+    return @showPage() if isFirstVisit() || !appCache || appCache.status==0 || navigator.onLine==false
     @_fetchPage()
 
 
   showPage: ()->
+    markVisisted()
     html = @rewriter.result()
     writeDocument = ()->
         document.open()
@@ -115,7 +122,6 @@ checkMirror = (mirror,succ,fail)->
 
 # only check local storage
 isBlocked = (mirror) ->
-  console.log mirror,LS.getItem(mirror)
   return LS.getItem(mirror) == 'blocked'
 
 
@@ -174,7 +180,7 @@ request = (opts)->
   xhr.onreadystatechange = ()->
     if xhr.readyState==4
       clean()
-      if xhr.status>=200 && xhr.status <400
+      if xhr.status>=200 && xhr.status <500
         opts.done(xhr)
       else
         opts.fail(xhr)

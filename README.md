@@ -16,8 +16,8 @@ Run Mirror Proxy Site.
 
 3. Init site:
   ```
-  mkdir /var/www/mysite
-  cd /var/www/mysite
+  mkdir /var/www/my-mirror
+  cd /var/www/my-mirror
   proxite init
   ```
 4. Configure: `vi config.js`
@@ -29,8 +29,9 @@ Run Mirror Proxy Site.
   };
   ```
 
-5. Just run: `proxite run`
+5. Just run: `proxite run` or use PM2 `pm2 start site.js --name my-mirror`
 
+6. Don't forget to set a daily restart Node.js server cronjob coz of Node.js memory leaks.
 
 ## Config Options
 

@@ -19,7 +19,7 @@ class Server extends EventEmitter
   Basic Proxy Server
 
   Events:
-    error:
+    # error: #TODO:  emit error event will cause server quit
       Emit before proxy request:
         (error,req,res,proxyReqOpt)
       Emit after proxy response:
@@ -168,7 +168,7 @@ class Server extends EventEmitter
   _sendProxyRequest: (error,req,res,opt,stackRes) ->
     debug("sendProxyRequest")
     if error
-      @emit('error',error,req,res,opt)
+      # @emit('error',error,req,res,opt)
       return @_finalHandle(req, res, error)
 
     debugHeader("Proxy request options:\n",JSON.stringify(opt,null,2))
@@ -195,11 +195,12 @@ class Server extends EventEmitter
                   e = new Error("Proxy Request Timeout")
                   e.status = 504
                   @_finalHandle(req,res,e)
+
     proxyReq.setTimeout @timeout,onTimeout
 
     onError = (e) =>
                 debug("Proxy request error:"+e.message)
-                @emit('error',e,req,res,proxyReq)
+                # @emit('error',e,req,res,proxyReq) # emit error will cause server quit
                 @_finalHandle(req,res,e)
     proxyReq.on 'error',onError
 
@@ -222,7 +223,7 @@ class Server extends EventEmitter
   _sendProxyResponse: (error,proxyRes,res,proxyReq,req) ->
     debug("sendProxyResponse")
     if error
-      @emit('error',error,req,res,proxyReq,proxyRes)
+      # @emit('error',error,req,res,proxyReq,proxyRes)
       return @_finalHandle(error,req,res)
     prepareBody proxyRes
     @emit('response',proxyRes,res,proxyReq,req)
