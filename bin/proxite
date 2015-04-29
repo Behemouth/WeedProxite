@@ -8,14 +8,16 @@ export NODE_PATH="$LIB_ROOT/..:$LIB_ROOT/node_modules/:$NODE_PATH";
 cd $LIB_ROOT;
 export PATH="$(npm bin):$PATH";
 cd -;
-
-if ! which nodejs >/dev/null 2>&1; then alias nodejs=node; fi;
+nodejs='nodejs'
+if ! which nodejs >/dev/null 2>&1; then
+  nodejs='node'
+fi;
 
 if echo "$@"|grep -P -e '\brun\b.*--debug';then
   # Use nodemon for `run --debug`
   nodemon --watch "$LIB_ROOT" --ignore "$LIB_ROOT/lib/tpl/" -e js "$LIB_ROOT/bin/cmd.js" "$@"
 else
-  nodejs "$LIB_ROOT/bin/cmd.js" "$@"
+  $nodejs "$LIB_ROOT/bin/cmd.js" "$@"
 fi;
 
 
