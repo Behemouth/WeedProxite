@@ -118,7 +118,7 @@ class Site extends Server
           debug('Cache hit:',key)
           result = JSON.parse(result)
           res.writeHead(result.statusCode,result.headers)
-          res.end(new Buffer(result.body.data))
+          res.end(new Buffer(result.body))
           return
 
         return next()
@@ -288,6 +288,7 @@ Site.middleware =
         configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1] || config.defaultPageTitle
         configData.pageContent = body
         configData.proxyTarget = req.proxyTarget
+        configData.showMirrorNotice = false if req.method != 'GET'
         configData.enableAppcache = false if req.proxyAction == 'iframe' || req.method !='GET'
         configData.charset = proxyRes.charset || config.upstreamDefaultCharset
         configData.json = misc.escapeUnicode(JSON.stringify(configData).replace(/<\/script>/ig,'<\\/script>'))

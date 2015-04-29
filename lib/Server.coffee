@@ -1,6 +1,7 @@
 # Server
 debug = require('debug')('WeedProxite:Server')
 debugHeader = require('debug')('WeedProxite:Server:header')
+debugBody = require('debug')('WeedProxite:Server:body')
 http = require 'http'
 https = require 'https'
 misc = require './misc'
@@ -8,7 +9,7 @@ fs = require 'fs'
 url = require 'url'
 PWare = require './Middleware'
 EventEmitter = (require 'events').EventEmitter
-encoding = require 'encoding'
+iconvLite = require 'iconv-lite'
 contentType = require 'content-type'
 finalhandler = require 'finalhandler'
 bodyParser = require 'body-parser'
@@ -243,6 +244,7 @@ class Server extends EventEmitter
     if body
       res.end(body)
     else
+      debugBody('PIPE!')
       proxyRes.pipe(res)
 
   _finalHandle: (req,res,error) ->
@@ -375,7 +377,8 @@ Server.middleware =
           return false
         return _match.apply(this,arguments) if _match
         return true
-      after: (proxyRes,res,next)->
+      after: (proxyRes,res,next,preq,req)->
+        return next() if proxyRes.body
         decodeBody = (err)->
           return next(err) if err
           body = proxyRes.body
@@ -386,16 +389,18 @@ Server.middleware =
 
           charset = getCharset proxyRes
           if !charset
-            tmpBody = encoding.convert body,"utf-8",defaultCharset
-            proxyRes.body = tmpBody.toString()
+            tmpBody = iconvLite.decode body,defaultCharset
+            proxyRes.body = tmpBody
             charset = getCharsetFromBody proxyRes
-          return next() unless charset
+            return next() unless charset && charset != defaultCharset
+
+          proxyRes.charset = charset || defaultCharset
           try
-            textBody = encoding.convert body,"utf-8",charset
+            textBody = iconvLite.decode body,charset
           catch e
             return next(e)
-          proxyRes.body = textBody.toString()
-          proxyRes.charset = charset
+          proxyRes.body = textBody
+
           return next()
 
         rawBody(proxyRes,res,decodeBody)
@@ -428,8 +433,8 @@ prepareBody = (opt) ->
   body = opt.body
   return unless body?
   if typeof body == 'string'
-    charset = opt.charset || getCharset(opt) || 'utf-8'
-    body = encoding.convert(body,charset)
+    charset = opt.charset || 'utf-8'
+    body = iconvLite.encode(body,charset)
 
   delete opt.headers["content-encoding"]
   # since body have read,it may have been changed too

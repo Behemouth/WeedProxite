@@ -31,7 +31,7 @@
     "content-type":"~1.0.1",
     "finalhandler":"~0.3.4",
     "body-parser":"~1.12.2",
-    "encoding":"~0.1.11",
+    "iconv-lite":"~0.4.8",
     "browserify":"~9.0.4",
     "coffee-script":"~1.9.0",
     "pm2":"~0.12.10",
