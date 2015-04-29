@@ -44,7 +44,7 @@
     "name": "Behemouth"
   },
   "scripts": {
-    "postinstall":"./node_modules/.bin/coffee --compile .",
+    "postinstall":"./node_modules/.bin/coffee --compile .; ./node_modules/.bin/browserify -t coffeeify ./lib/Client.coffee > ./lib/tpl/static/bundle.js",
     "test": "tap test/*.js"
   },
   "license": "MIT"

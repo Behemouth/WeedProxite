@@ -46,13 +46,17 @@ checkSiteRoot = (root) ->
 initSite = (root,opts,cb) ->
   root ?= process.cwd()
   checkSiteRoot root
-  bundleJS = fs.createWriteStream(BUNDLE_JS)
-  bundleJS.on 'finish',()->
+  if !opts.debug
     Site.init root,opts.override
-    console.log "Init successfully!Override:"+ (!!opts.override)
     cb && cb()
+  else
+    bundleJS = fs.createWriteStream(BUNDLE_JS)
+    bundleJS.on 'finish',()->
+      Site.init root,opts.override
+      console.log "Init successfully!Override:"+ (!!opts.override)
+      cb && cb()
 
-  browserify(CLIENT_SRC).transform(coffeeify).bundle().pipe(bundleJS)
+    browserify(CLIENT_SRC).transform(coffeeify).bundle().pipe(bundleJS)
 
 
 
