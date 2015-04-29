@@ -5,8 +5,7 @@
   "main": "index",
   "preferGlobal":true,
   "bin": {
-    "proxite": "bin/proxite",
-    "weedproxite": "bin/weedproxite"
+    "proxite": "bin/proxite"
   },
   "repository": {
     "type": "git",
