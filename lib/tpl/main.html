@@ -8,7 +8,7 @@
 <meta charset="<%= config.charset %>" />
 <meta http-equiv="Content-Type" content="text/html; charset=<%= config.charset %>" />
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
-<title><%- config.pageTitle + config.texts.append_title %></title>
+<title><%- config.pageTitle + (config.texts.append_title || '') %></title>
 </head>
 <body>
 <div id="WeedProxiteTip_JUST_MAGIC_BIT">
@@ -83,7 +83,7 @@
   </style>
   <div>
     <p class="title"><%= config.texts.loading %></p>
-    <h1 class="title"><%- config.pageTitle + config.texts.append_title %></h1>
+    <h1 class="title"><%- config.pageTitle + (config.texts.append_title || '') %></h1>
     <% if (config.mirrorCollectionLinks) { %>
       <p><%= config.texts.if_website_fails %></p>
       <ul>

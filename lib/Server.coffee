@@ -1,30 +1,63 @@
 # Server
 debug = require('debug')('WeedProxite:Server')
 debugHeader = require('debug')('WeedProxite:Server:header')
-debugBody = require('debug')('WeedProxite:Server:body')
 http = require 'http'
 https = require 'https'
 misc = require './misc'
 fs = require 'fs'
 url = require 'url'
-PWare = require './Middleware'
+Middleware = require './Middleware'
 EventEmitter = (require 'events').EventEmitter
-iconvLite = require 'iconv-lite'
+iconv = require 'iconv-lite'
 contentType = require 'content-type'
 finalhandler = require 'finalhandler'
+Promise = require 'promise'
 bodyParser = require 'body-parser'
-compression = require 'compression'
+
+
+###
+request(IncomingMessage) extended properties:
+    protocol: Enum(http:|https:)  # Because Node.js URLObject mimiced window.location object
+    origin: String # try get self origin from X-Forwarded-Host headers
+    host: String   # X-Forwarded-Host | req.headers.host
+    charset: String|null  # charset get from Content-Type header
+###
+extendRequest = (req)->
+  # When serve as browser's http proxy
+  # request.url will become full href
+  reqUrl = url.parse(req.url)
+  req.protocol = (reqUrl.protocol || (if hasEncryptedConnection(req) then 'https:' else 'http:'))
+  req.url = reqUrl.path
+  req.charset = getCharset req
+  host = (req.headers['x-forwarded-host'] || '').split(',')[0] || req.headers.host
+  proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || req.protocol.slice(0,-1)
+  req.host = host
+  req.origin = proto + '://' + host
+
+
+###
+proxyResponse(IncomingMessage) extended properties:
+    charset: String|null # charset get from Content-Type header
+    withTextBody: (options,next)
+        Options {
+          defaultCharset:"utf-8",
+          limit:"2mb" # size limit
+        }
+
+        next(err,body:String)
+###
+extendProxyResponse = (proxyRes)->
+  proxyRes.charset = getCharset proxyRes
+  proxyRes.withTextBody = _withTextBody
+
+
+
 
 class Server extends EventEmitter
   ###
   Basic Proxy Server
 
   Events:
-    # error: #TODO:  emit error event will cause server quit
-      Emit before proxy request:
-        (error,req,res,proxyReqOpt)
-      Emit after proxy response:
-        (error,req,res,proxyReq,proxyRes)
     timeout: Proxy request timeout
       (req,res,proxyReq)
     request: Request incoming,not run middlewares `before`
@@ -36,43 +69,57 @@ class Server extends EventEmitter
     response: Response to client,already run middlewares `after`
       (proxyRes,res,proxyReq,req)
     finally: Emit on either normal response or error response, you can set some headers in this event
-      (req,res,error)
+      (req,res,[error])
   ###
 
   @defaultConfig: {
+    xforward:true,
     timeout: 30000, # miliseconds
   }
+
+  @_server:null
+  @_running:false
   ###
   @param {Object} config
+  @option  timeout
+  @option  xforward
+  @option httpsOptions  pass to https.createServer
   ###
   constructor: (config) ->
     super
-    @timeout = config.timeout || Server.defaultConfig.timeout
+    @timeout = config?.timeout || Server.defaultConfig.timeout
     @_middlewares = []
+    @use(xforward) unless config?.xforward==false
+    @_httpsOptions = config?.httpsOptions
+
 
   ###
-  Same params as http.Server#listen()
+  Same params as http/https.Server#listen()
   ###
   listen: (port,host) ->
-    if @_server
-      throw new Error('Server already started!')
+    throw new Error('Server is already running!') if @_server
 
-    if @config.httpsOptions
-      @_server = https.createServer @config.httpsOptions,(req,res) => @_handle(req,res)
-    else
-      @_server = http.createServer (req,res) => @_handle(req,res)
+    handler = (req,res) => @_handle(req,res)
+    @_server =  if @_httpsOptions
+                  https.createServer(@_httpsOptions,handler)
+                else
+                  http.createServer(handler)
 
-    if @_server.setTimeout # old Node.js version like 0.10 https Server doesn't have setTimeout
-      @_server.setTimeout @timeout
-    debug('Server listen on '+host+':'+port)
+    # old Node.js version like 0.10 https Server doesn't have setTimeout
+    @_server.setTimeout @timeout if @_server.setTimeout
+
+    listenOn = if typeof host == 'string' then host + ':' + port else port
+    debug('Server listen on ' + listenOn)
     @_server.listen.apply @_server,arguments
 
   close: (cb) ->
-    debug('Server closed')
+    debug('Server closing')
     return if !@_server
-    @_server.close(cb)
+    @_server.close ()=>
+                      cb && cb()
+                      @emit('close')
     @_server = null
-    @emit('close')
+
 
   ###
   Use middlewares, compatible with connect().use()
@@ -82,11 +129,11 @@ class Server extends EventEmitter
       var opt = proxyReqOpt;
       //change to target upstream host,remember to change Host header
       opt.headers.host = opt.host = "www.upstream.com"
-      next(); // remember to invoke `next`
+      next(); // ** remember to invoke `next` **
     }
   }
-
   server.use(opt) or server.use(new Middleware(opt))
+
   @match
     Same as connect().use
     @param {Function} fn As `before` handler
@@ -102,46 +149,39 @@ class Server extends EventEmitter
     args = Array.prototype.slice.call arguments
     # connect.use style one arg
     if args.length == 1 and typeof route == 'function'
-      # connect().use() middleware function(err,req,res,next) is error handler
-      @_middlewares.push(new PWare {before:route,isErrorHandler: route.arity == 4})
+      # connect().use() middleware four arity function(err,req,res,next) is error handler
+      @_middlewares.push(new Middleware {before:route,isErrorHandler: route.arity == 4})
     else if args.length == 2  && typeof route == 'string' && typeof fn == 'function'
       # connect.use style two arg,mount middleware
-      @_middlewares.push new PWare {route:route,before:fn}
+      @_middlewares.push new Middleware {route:route,before:fn}
     else
       # otherwise all are Middleware or options
-      args = args.map (m) ->
-                      if m instanceof PWare then return m
-                      else return new PWare(m)
+      args = args.map (m) -> if m instanceof Middleware then  m else  new Middleware(m)
       @_middlewares.push.apply @_middlewares,args
 
     return this
 
-
-
   _handle: (req,res) ->
     debug('Server #'+misc.id(this)+' handle incoming request:'+req.url)
     req.setTimeout @timeout
-    # When serve as browser http proxy
-    # request.url will become full URI
-    reqUrl = url.parse(req.url)
-    req.protocol = reqUrl.protocol || (if req.connection.encrypted then 'https' else 'http')
-    req.url = reqUrl.path
-    proxyReqOpt =
+    extendRequest(req)
+    proxyReqOpt = {
       protocol: req.protocol
       method: req.method
-      host: reqUrl.host || req.headers.host
+      host: ''
       path: req.url
+    }
 
     headers = {}
-    headers[k] = v for own k,v of req.headers
+    headers[k] = v for k,v of req.headers
     proxyReqOpt.headers = headers
 
     @emit('request',req,res,proxyReqOpt)
-    return @_prepareProxyRequest(req,res,proxyReqOpt)
+    @_prepareProxyRequest(req,res,proxyReqOpt)
 
 
   _prepareProxyRequest: (req,res,proxyReqOpt)->
-    debugHeader('Initial request options:\n'+JSON.stringify(proxyReqOpt,null,2))
+    debugHeader('Initial request options:\n',proxyReqOpt)
     stackReq = @_middlewares.slice()
     stackRes = []
     error = null
@@ -151,62 +191,48 @@ class Server extends EventEmitter
       mw = stackReq.shift()
       return @_sendProxyRequest(error,req,res,proxyReqOpt,stackRes) unless mw
       return nextReq() unless mw._match req,res,proxyReqOpt
-
       stackRes.push mw
-      passReq = req
-      if mw.mount
-        # if mount point is "/static/",
-        # for "/static/logo.png",middleware will get req.url "/logo.png"
-        subUrl = req.url.slice(mw.route.length)
-        if subUrl[0] != '/'
-          subUrl = '/' + subUrl
-        passReq = misc.clone req,{url:subUrl}
-      runMiddleware mw,"_before",error,passReq,res,nextReq,proxyReqOpt
+      runMiddleware mw,"_before",error,req,res,nextReq,proxyReqOpt
 
     return nextReq()
 
 
   _sendProxyRequest: (error,req,res,opt,stackRes) ->
+    return @_finalHandle(req, res, error) if error
     debug("sendProxyRequest")
-    if error
-      # @emit('error',error,req,res,opt)
-      return @_finalHandle(req, res, error)
+    debugHeader("Proxy request options:\n",opt)
+    return @_finalHandle(req, res, new Error('Target host is empty!')) if !opt.host
 
-    debugHeader("Proxy request options:\n",JSON.stringify(opt,null,2))
     opt.protocol += ':' unless opt.protocol.slice(-1) == ':'
     sender = if opt.protocol == 'https:' then https else http
     [hostname,port] = opt.host.split ':'
     (port = if opt.protocol == 'https:' then '443' else '80') if !port
     opt.hostname = hostname; opt.port = port; delete opt.host
+
     prepareBody(opt)
-    body = opt.body
 
     @emit('proxyRequest',req,res,opt)
-    proxyReq = sender.request opt,
-                  (proxyRes) =>
+    proxyReq = sender.request opt, (proxyRes) =>
                     debug('Upstream response')
-                    debugHeader('Initial response headers:'+JSON.stringify(proxyRes.headers,null,2))
+                    debugHeader('Initial response headers:\n',proxyRes.headers)
+                    extendProxyResponse(proxyRes)
                     @emit('proxyResponse',proxyRes,res,proxyReq,req)
                     @_prepareProxyResponse(proxyRes,res,proxyReq,req,stackRes)
 
-    onTimeout = ()=>
-                  debug("Proxy request timeout")
-                  proxyReq.abort()
-                  @emit('timeout',req,res,proxyReq)
-                  e = new Error("Proxy Request Timeout")
-                  e.status = 504
-                  @_finalHandle(req,res,e)
+    proxyReq.setTimeout @timeout, ()=>
+                    debug("Proxy request timeout")
+                    proxyReq.abort()
+                    @emit('timeout',req,res,proxyReq)
+                    e = new Error("Proxy Request Timeout")
+                    e.status = 504
+                    @_finalHandle(req,res,e)
 
-    proxyReq.setTimeout @timeout,onTimeout
+    proxyReq.on 'error',(e) =>
+                            debug("Proxy request error:",e)
+                            @_finalHandle(req,res,e)
 
-    onError = (e) =>
-                debug("Proxy request error:"+e.message)
-                # @emit('error',e,req,res,proxyReq) # emit error will cause server quit
-                @_finalHandle(req,res,e)
-    proxyReq.on 'error',onError
-
-    if body #TODO: recalculate content-length
-      proxyReq.end(body)
+    if opt.body #TODO: recalculate content-length?
+      proxyReq.end(opt.body)
     else
       req.pipe(proxyReq)
 
@@ -223,28 +249,22 @@ class Server extends EventEmitter
 
   _sendProxyResponse: (error,proxyRes,res,proxyReq,req) ->
     debug("sendProxyResponse")
-    if error
-      # @emit('error',error,req,res,proxyReq,proxyRes)
-      return @_finalHandle(error,req,res)
+    return @_finalHandle(error,req,res) if error
     prepareBody proxyRes
-    @emit('response',proxyRes,res,proxyReq,req)
-    body = proxyRes.body
 
     for k,v of proxyRes.headers
-      if v # Obsessive! Http Header Must Be Capitalize!
-        k = misc.capitalize(k)
+      if v # Obsessive! Http Header Must Be Capitalized!
+        # k = misc.capitalize(k)
         res.setHeader(k,v)
-        proxyRes.headers[k]=v
       else
         res.removeHeader(k)
-        delete proxyRes.headers[k]
 
+    @emit('response',proxyRes,res,proxyReq,req)
     @emit('finally',req,res)
     res.writeHead(proxyRes.statusCode)
-    if body
-      res.end(body)
+    if proxyRes.body
+      res.end(proxyRes.body)
     else
-      debugBody('PIPE!')
       proxyRes.pipe(res)
 
   _finalHandle: (req,res,error) ->
@@ -253,7 +273,6 @@ class Server extends EventEmitter
 
 
 runMiddleware = (mw,method,error,req,res,next,args...) ->
-  #debug("Run middleware #{method}:"+mw)
   if error && mw.isErrorHandler
     return mw[method].apply(mw,[error,req,res,next].concat args)
   else if !error && !mw.isErrorHandler
@@ -261,208 +280,110 @@ runMiddleware = (mw,method,error,req,res,next,args...) ->
 
 
 ###
-Built-in middlewares
+Adds x-forward headers
 ###
-Server.middleware =
-  ###
-  Proxy all requests to target host
-  @param {String} target "http://www.example.com" or host only "www.example.com"
-  @param {Boolean} relocation upstream response "Location" header if it is full href
-  ###
-  retarget: (target,relocation=true) ->
-    if ~target.indexOf('://')
-      target =  url.parse target
-      targetHost = target.host
-      targetProtocol = target.protocol
-    else
-      targetHost = target
-      targetProtocol = null
-    return {
-      before:(req,res,next,opt) ->
-        opt.headers.host = opt.host = targetHost
-        opt.protocol = targetProtocol || req.protocol
-        next()
-      after:(proxyRes,res,next,_,req) ->
-        location = proxyRes.headers.location
-        return next() unless relocation && location
-        href = location
-        autoProtocol = false
-        if href.slice(0,2) == "//"
-          # "//example.com/" is valid but url.parse not handle correctly
-          href = "http:" + href
-          autoProtocol = true
-        return next() unless ~href.indexOf("://")
-        p = url.parse href
-        if p.host == targetHost
-          p.host = req.headers.host
-          if autoProtocol
-            p.protocol = null
-          proxyRes.headers.location  = url.format p
-        next()
+xforward = {
+  name: 'xforward'
+  before: (req,res,next,opt) ->
+    # Proxy standard headers.
+    values = {
+      for  : req.connection.remoteAddress || req.socket.remoteAddress,
+      port : getPort(req),
+      proto: req.protocol.slice(0,-1) # WTF url.parse(s).protocol contains colon
     }
+    headers = opt.headers
 
-  ###
-  Rewrite path
-  @param {String|RegExp|Wildcard} pattern of path
-  @param {String} substitution Able to use group match result "$1" and
-                                 could be either path or full URI
-  @example
-    rewrite("/static/*","http://static.cdn.com/$1")
-    rewrite("/http://*","http://$1")
-    rewrite(/^\/(.+)\.css\b(?:\?.*)?$/i,"/css-compress/$1.css")
-  ###
-  rewrite: (pattern,substitution) ->
-    pattern = misc.rewild pattern if typeof pattern == 'string'
-    return {
-      path: pattern
-      before:(req,res,next,opt) ->
-        target = req.url.replace  pattern,substitution
-        target = url.parse target
-        opt.path = target.path
-        opt.protocol = target.protocol || opt.protocol
-        opt.host = target.host || opt.host
-        next()
-    }
+    ['for', 'port', 'proto'].forEach (header)->
+      h = 'x-forwarded-' + header
+      headers[h] = (if headers[h] then headers[h]+',' else '') + values[header]
 
-  ###
-  Adds x-forward headers
-  ###
-  xforward: () ->
-    return {
-      before: (req,res,next,opt) ->
-        # Proxy standard headers.
-        encrypted = req.isSpdy || req.connection.encrypted || req.connection.pair
-        values = {
-          for  : req.connection.remoteAddress || req.socket.remoteAddress,
-          port : getPort(req),
-          proto: if encrypted then 'https' else 'http'
-        }
-        headers = opt.headers
+    if !headers['x-real-ip']
+      real_ip = headers['x-forwarded-for'];
+      if real_ip
+        # If multiple (command-separated) forwarded IPs, use the first one.
+        headers['x-real-ip'] = real_ip.split(',')[0]
 
-        ['for', 'port', 'proto'].forEach (header)->
-          h = 'x-forwarded-' + header
-          headers[h] = (if headers[h] then headers[h]+',' else '') + values[header]
-
-        if !headers['x-real-ip']
-          real_ip = headers['x-forwarded-for'];
-          if real_ip
-            # If multiple (command-separated) forwarded IPs, use the first one.
-            headers['x-real-ip'] = real_ip.split(',')[0]
-
-        next()
-    }
-
-  compress: ()-> compression()
-
-  ###
-  Improved text body parser for proxy response
-  @param {Object} options extend to Middleware
-    Extra options:
-    {
-      defaultCharset:"UTF-8",
-      limit:"2mb" // size limit
-    }
-  ###
-  withTextBody: (opt) ->
-    opt ?= {}
-    defaultCharset = (opt.defaultCharset || "utf-8").toLowerCase()
-    rawBody = bodyParser.raw({type:"*/*",limit:opt.limit || "2mb"})
-    _match = opt.match
-    delete opt.match
-    delete opt.defaultCharset
-    delete opt.limit
-    mw = {
-      match: (req) ->
-        if req.method =='HEAD' || req.method =='DELETE'
-          return false
-        return _match.apply(this,arguments) if _match
-        return true
-      after: (proxyRes,res,next,preq,req)->
-        return next() if proxyRes.body
-        decodeBody = (err)->
-          return next(err) if err
-          body = proxyRes.body
-          return next() if typeof body == 'string'
-          unless Buffer.isBuffer body
-            proxyRes.body = ""
-            return next()
-
-          charset = getCharset proxyRes
-          if !charset
-            tmpBody = iconvLite.decode body,defaultCharset
-            proxyRes.body = tmpBody
-            charset = getCharsetFromBody proxyRes
-            return next() unless charset && charset != defaultCharset
-
-          proxyRes.charset = charset || defaultCharset
-          try
-            textBody = iconvLite.decode body,charset
-          catch e
-            return next(e)
-          proxyRes.body = textBody
-
-          return next()
-
-        rawBody(proxyRes,res,decodeBody)
-
-    }
-    opt.mime ?= /\b(?:text|javascript|xml)\b/i
-    mw[k]=v for k,v of opt
-
-    return mw
+    next()
+}
 
 
 
 
-bindWare = (name,ware) ->
-  Server.prototype[name] = ()->
-    return @use(ware.apply(this,arguments))
+# Improved text body reader for proxy response
+# withTextBody method of proxyResponse
+_withTextBody = (opts,cb) ->
+  if !cb
+    cb = opts
+    opts = null
 
-for name,ware of Server.middleware
-  bindWare(name,ware)
+  return cb(null,@body) if typeof @body == 'string'
+  tryCharset = (@charset || opts?.defaultCharset || 'utf-8').toLowerCase()
+  options = {
+    type:'*/*'
+    limit: opts?.limit || '2mb'
+  }
+  ct = @headers['content-type']
+  _this = this
+  decodeBody = (err) ->
+    return cb(err) if err
+    bodyBuffer = _this.body
+    body = iconv.decode bodyBuffer,tryCharset
+    body = (body + " ").slice(0,-1) # work aroud Node.js buffer encoding bug
+    _this.body = body
+    # if charset specified with Content-Type,don't guess it again
+    return cb(null,body) if _this.charset
+    charset = getCharsetFromBodyByCT body,ct
+    _this.charset = charset || tryCharset
+    return cb(null,body) if !charset || charset==tryCharset
+    body = iconv.decode bodyBuffer,charset
+    body = (body + " ").slice(0,-1) # work aroud Node.js buffer encoding bug
+    _this.body = body
+    return cb(null,body)
+
+  return decodeBody(null) if Buffer.isBuffer(@body)
+  bodyParser.raw(options)(this,null,decodeBody)
+
 
 
 ###
 Prepare body to send
-@param {http.IncomingMessage like Object} opt
+@param {IncomingMessage} opt
 opt.charset may be set by others
 opt.headers
 opt.body
 ###
 prepareBody = (opt) ->
   body = opt.body
+  delete opt.body
   return unless body?
-  if typeof body == 'string'
-    charset = opt.charset || 'utf-8'
-    body = iconvLite.encode(body,charset)
-
+  charset = (opt.charset || 'utf-8')
+  body = iconv.encode(body,charset) if typeof body == 'string'
+  return unless Buffer.isBuffer(body)
   delete opt.headers["content-encoding"]
-  # since body have read,it may have been changed too
+  # since body have read,its length may have been changed too
   delete opt.headers["content-length"]
-  return opt.body = (if !Buffer.isBuffer(body) then new Buffer("") else body)
+  opt.body = body
 
 
-getCharset = (req)->
-  try
-    charset = contentType.parse(req).parameters.charset.toLowerCase()
-    return charset
+# getCharset from IncomingMessage header
+getCharset = (im)-> try return contentType.parse(im).parameters.charset.toLowerCase()
 
-
-getCharsetFromBody = (req)->
-  ct = req.headers["content-type"]
+# getCharset from IncomingMessage body by content-type
+getCharsetFromBodyByCT = (body,ct)->
   return if !ct
-  body = req.body # you must set body to string before call this function
   m = null
-  if /\btext\/html\b/i.test ct
+  if /\btext\/html\b/i.test(ct) && /<meta\s/i.test(body) && /<meta[^>]+charset=/i.test(body)
     # remove html comments and scripts,styles
     body = body.replace /<!--[^]*?-->|<script[^>]*>[^]*?<\/script>|<style[^>]*>[^]*?<\/style>/ig,""
     m = /<meta\s+[^>]+\btext\/html;\s+charset=([\w-]+)[^>]*>/i.exec body
     m = /<meta\s+charset=["']?([\w-]+)[^>]*>/i.exec body if !m
-  else if /\btext\/css\b/i.test ct
+  else if /\btext\/css\b/i.test(ct) && /^@charset\s/im.test(body)
     body = body.replace /\/\*[^]*?\*\//g,"" # remove css comments
     m = /^@charset\s+["']([\w-]+)["']/im.exec body
 
-  return m[1] if m
+  charset = (m?[1] || '').toLowerCase()
+  charset = 'utf-8' if charset == 'utf7' || charset=='utf-7' # forbidden UTF-7
+  return charset
 
 getPort = (req) ->
   if req.headers.host
@@ -474,6 +395,9 @@ getPort = (req) ->
 
 hasEncryptedConnection = (req) ->
   return !!(req.connection.encrypted || req.connection.pair)
+
+
+
 
 module.exports = Server
 

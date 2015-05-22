@@ -11,30 +11,17 @@ browserify = require 'browserify'
 path = require 'path'
 watch = require 'watch'
 coffeeify = require 'coffeeify'
+enableDestroy = require '../lib/enableServerDestroy'
+
 LIB_ROOT = path.resolve __dirname+'/../'
 CLIENT_SRC = LIB_ROOT + '/lib/Client.coffee'
 BUNDLE_JS = LIB_ROOT + '/lib/tpl/static/bundle.js'
 misc = WeedProxite.misc
 
 
+
 exit =  (code) -> process.exit(code)
 
-
-
-enableDestroy = (server) ->
-  #  WTF Server#close(). There is no other way to force shutdown server!
-  connections = {}
-
-  server.on 'connection', (conn) ->
-    key = conn.remoteAddress + ':' + conn.remotePort
-    connections[key] = conn
-    conn.on 'close', () ->
-      delete connections[key]
-
-  server.destroy = (cb) ->
-    server.close(cb)
-    for key of connections
-      connections[key].destroy()
 
 
 

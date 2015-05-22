@@ -9,7 +9,7 @@ main = (host,port)->
   return site
 
 
-exports.main = main
+module.exports = main
 argv = process.argv
 ###
  Run as `node site.js localhost 8080`

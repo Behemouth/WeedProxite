@@ -5,6 +5,8 @@ Middleware
 misc = require './misc'
 
 class Middleware
+  # friends class Server
+
   ###
   All of host,path,mime,method exact or wildcard match are ignore case
   If you pass RegExp,you need to specify ignoreCase by yourself
@@ -49,15 +51,37 @@ class Middleware
   If mount mode is true, request.url part match @route will be trimed off
   Just like what `connect` did,for compatible purpose
   ###
-  mount: false
+  _mount: false
   route: ''
   isErrorHandler: false
+
+  ###
+  Quick test if this middleware match all request
+  ###
+  _matchAll:false
+  _toTestProps:null
+
+  # verbose name
+  name: ''
 
   ###
   @param {Object} options extend to Middleware instance property
   ###
   constructor: (options) ->
+    if ((options.host || '*') == (options.path || '*') ==
+        (options.method || '*') == (options.mime || '*')) &&
+       !options.route && !options.match
+      @_matchAll = true
+
     this[key]=value for own key,value of options
+
+    if @route
+      @path = @route
+      @_mount = true
+
+    return if @_matchAll
+
+    toTestProps = []
 
     if @mime != '*'
       @_mimeRegex = if @mime instanceof RegExp
@@ -65,28 +89,28 @@ class Middleware
                     else
                       new RegExp((misc.rewild this.mime,"\\b","\\b"),"i")
 
-    if @route
-      @path = @route
-      @mount = true
-
-    @path += "*" if typeof @path == 'string' && @path.slice(-1) != '*'
+    @path += '*' if typeof @path == 'string' && @path.slice(-1) != '*'
 
     ['host','path','method'].forEach (p)=>
-      if this[p] != '*'
-        _p = "_"+p+"Regex"
-        if this[p] instanceof RegExp
-          this[_p] = this[p]
-        else
-          this[_p] = new RegExp((misc.rewild this[p]),'i')
+        return if this[p] == '*'
+        _p = '_'+p+'Regex'
+        this[_p] =  if this[p] instanceof RegExp
+                      this[p]
+                    else
+                      new RegExp((misc.rewild this[p]),'i')
+        toTestProps.push [p,this[_p]]
+
+    @_toTestProps = toTestProps
 
 
 
   ###
-  Before send request to upstream default handler,you can alter request options before send to upstream.
-  @param {IncomingMessage} req Origin request from client, extended with BodyAccesor
+  Default handler run before send request to upstream,
+  you can alter request options before send to upstream.
+  @param {IncomingMessage} req Origin request from client
   @param {ServerResponse} res Origin response to client
   @param {Function(err)} next As async return/continuation,err param see finalhandler doc
-  @param {Object} options proxy to upstream http.request() options, extended with `body` property
+  @param {Object} options proxy to upstream http/https.request() options
   All options:
   {
     protocol : "http", // or change to "https"
@@ -95,21 +119,22 @@ class Middleware
     host: "www.example.com:8080",
     path: "/path/to/file.html?query=yes",
     headers: {},
-    // You can alter request body
+    // You can alter request body here, Server class will send it
     body: "user=guest&passwd=no"
   }
   ###
   before: (req,res,next,options) -> next()
 
   ###
-  After upstream response default handler,you can alter upstream response before send to client user.
+  Default handler run after upstream response,
+  you can alter upstream response before send to client user.
   This param order is designed to easy reuse `connect` middlewares like `body-parser`
   For example:
-    server.use({after:bodyParser.text({type:"text/html"})}) // remember to specify `type`
-  @param {IncomingMessage} proxyRes get from proxyRequest.on('response')
+    server.use({after:bodyParser.text({type:"text/html"})}) // remember to specify `type` option
+  @param {IncomingMessage} proxyResponse get from proxyRequest.on('response')
   @param {ServerResponse} res Origin response to client
   @param {Function(err)} next As async return/continuation,err param see finalhandler doc
-  @param {ClientRequest} proxyReq return value by http.request
+  @param {ClientRequest} proxyRequest return value by http/https.request
   @param {IncomingMessage} req Origin request from client
   ###
   after: (proxyRes,res,next,proxyReq,req) -> next()
@@ -123,24 +148,35 @@ class Middleware
   match: (req,res,options) -> return true
 
   _match: (req,res,options) ->
+    return true if @_matchAll
     fail = false
-    for p in ["host","path","method"]
-      unless this[p] == '*' || this["_"+p+"Regex"].test(options[p])
+    for [p,re] in @_toTestProps
+      unless re.test options[p]
         fail = true
         break
 
     return !fail && @match.apply(this,arguments)
 
-
-
   _before:  (req,res,next,options) ->
     accept = req.headers.accept || ''
     return next() if @mime != '*' && !~accept.indexOf('*/*') && !@_mimeRegex.test(accept)
+
+    if @_mount
+      # mount route compatibility for connect framework
+      # if mount point is "/static/",
+      # for "/static/logo.png",middleware will get req.url = "/logo.png"
+      subUrl = req.url.slice(@route.length)
+      subUrl = '/' + subUrl if subUrl[0] != '/'
+      originUrl = req.url
+      originNext = next
+      req.url = subUrl
+      next = (err)-> req.url = originUrl; originNext(err)
+
     @before.apply(this,arguments)
 
-
   _after: (proxyRes,res,next,proxyReq,req) ->
-    return next() if @mime !='*' && !@_mimeRegex.test(proxyRes.headers["content-type"])
+    ct = proxyRes.headers["content-type"]
+    return next() if @mime !='*' && !@_mimeRegex.test(ct)
     @after.apply(this,arguments)
 
 

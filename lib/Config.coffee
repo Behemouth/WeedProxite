@@ -22,7 +22,7 @@ class Config
 
   # Some texts used on mirror landing page
   texts:{
-    append_title: "|Mirror Site",
+    append_title: " | Mirror Site",
     loading: "Loading...",
     if_website_fails: "If the website fails to load, you may be able to find another mirror URL here:"
   }
@@ -73,15 +73,18 @@ class Config
   ###
   Path reserved as  WeedProxite API: /-proxite-/$action/$url
   Example:
-    CSS proxy path" /-proxite-/css/
-    Iframe proxy: /-proxite-/iframe/
-    Raw content direct proxy path: /-proxite-/raw/
     Serve static files under "$siteRoot/static" directory: /-proxite-/static/
     Status: /-proxite-/status/
-  Target url appended; e.g. /-proxite-/raw/http://example.com/logo.png
-  So it's easy to use nginx proxy_pass for '/-proxite-/raw/'
+    Appcache Manifest: /-proxite-/manifest.appcache
   ###
   api: '/-proxite-/'
+
+  ###
+  URL query string param name reserved to control output type
+  Example: "/path/a.html?_WeedProxiteCtrl=raw" will output original html content without rewrite
+  Value Enum(raw|iframe)
+  ###
+  outputCtrlParamName: '_WeedProxiteCtrl'
 
   # Proxy server bind host
   host: '127.0.0.1'
@@ -102,13 +105,15 @@ class Config
 
     @upstream = @upstream.slice(0,-1) if @upstream.slice(-1) =='/'
 
-    @_selfHosts = (misc.parseUrl(url).host for url in @mirrorLinks)
+    @_selfHosts = (misc.parseUrl(url)[1] for url in @mirrorLinks)
     @_selfHostsMap = {}
     for host in @_selfHosts
       @_selfHostsMap[host.toLowerCase()]=1
 
-    @_upstreamHost = misc.parseUrl(@upstream).host
-    @allowHosts.push(@_upstreamHost)
+    [scheme,host] = misc.parseUrl(@upstream)
+    @upstreamHost = host
+    @upstreamScheme = scheme
+    @allowHosts.push(@upstreamHost)
 
     @_allowHostsMap = {}
     for host in @allowHosts
@@ -125,7 +130,7 @@ class Config
 
 
 
-  isUpstreamHost: (host) -> host == @_upstreamHost
+  isUpstreamHost: (host) -> host == @upstreamHost
 
   isProxyAPI: (urlpath) -> misc.prefixOf @api,urlpath
 

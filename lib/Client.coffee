@@ -42,7 +42,7 @@ class Client
       @tipHTML = @tip.outerHTML.replace(/^\s*<div\b/i,'<div class="top"')
 
     html = @config.pageContent
-    @rewriter = rewrite.html(html,@config.proxyTarget.origin,@config)
+    @rewriter = rewrite.html(html,@config)
     if @config.showMirrorNotice && @tipHTML
       @rewriter.replace /(<body\b[^>]*>)/ig,"$1"+@tipHTML
 

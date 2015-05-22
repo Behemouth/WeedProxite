@@ -2,7 +2,6 @@
 Config = require './Config'
 fs = require 'fs'
 path = require 'path'
-SUtil = require './misc'
 url = require 'url'
 Set = require 'Set'
 Server = require './Server'
@@ -12,7 +11,6 @@ md5 = require 'MD5'
 ejs = require 'ejs'
 querystring = require 'querystring'
 misc = require './misc'
-getRawBody = require('raw-body')
 LRU = require("lru-cache")
 debug = require('debug')('WeedProxite:Site')
 
@@ -32,62 +30,65 @@ class Site extends Server
   Run inited site, you must do Site.init(root) first
   ###
   @run: (root,host,port) ->
-    site = require(path.join(root,'site.js'))
-    return site.main(host,port)
+    main = require(path.join(root,'main.js'))
+    site = main(host,port)
+    console.log "Site serving on #{site.runningHost}:#{site.runningPort}..."
+    return site
 
 
   root: ''
   ###
-  @param {String} p Site root path
+  @param {String|Object} p Site root path string or config object
   ###
   constructor: (p) ->
-    @root = p
-    config = require(path.join(p,'config.js'))
-    if config.mirrorLinksFile
-      mirrorLinksFile = if @root && config.mirrorLinksFile[0]!='/'
-                          path.join(@root,config.mirrorLinksFile)
-                        else
-                          config.mirrorLinksFile
-      mirrorLinks = fs.readFileSync(mirrorLinksFile,{encoding:"utf-8"})
-      config.mirrorLinks = misc.trim(mirrorLinks).split(/\s+/g)
+    if typeof p == 'string'
+      @root = p
+      config = require(path.join(p,'config.js'))
+      if config.mirrorLinksFile
+        mirrorLinksFile = if config.mirrorLinksFile[0]!='/'
+                            path.join(@root,config.mirrorLinksFile)
+                          else
+                            config.mirrorLinksFile
+        mirrorLinks = fs.readFileSync(mirrorLinksFile,{encoding:"utf-8"})
+        mirrorLinks = misc.trim(mirrorLinks).split(/\s+/g)
+        config.mirrorLinks = mirrorLinks
 
-    @config = new Config(config)
-    @config.root = @root
-    super {timeout:@config.timeout}
+      @config = new Config(config)
+      @config.root = @root
+    else
+      @config = new Config(p)
+      @root = @config.root
+
+    super {timeout:@config.timeout,xforward:true,httpsOptions:@config.httpsOptions}
 
     @config.manifest = @config.api + 'manifest.appcache'
     @config.version = calcVersion @root
+    @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
+
     @_initTemplates()
-    @withTextBody({
-      defaultCharset: @config.upstreamDefaultCharset,
-      match: matchRewriteCond
-    })
+    @_prepare()
 
-    defaultMiddlewares = [
-      'prepare','serveProxiteStatic','serveAppcache','serveStatus',
-      'rewriteCSS','rewriteHTML','ignoreHeaders','xforward']
-    this[mw]() for mw in defaultMiddlewares
+    #@config._outputCtrlQueryRe = new RegExp('\\b'+@config.outputCtrlParamName+'=[^=&?#]*','g')
 
+    @use rewriteCrossDomainXML
+    @use rewriteCSS
+    @use rewriteHTML
 
     if @config.useMemcache
-      @_cache = LRU({
-                      max:300,
-                      maxAge:1000*60*60 # one hour
-                    })
+      @_cache = LRU({max:300,maxAge:1000*60*60}) # one hour
       @useCache(@_cache)
 
 
   run: (host,port)->
-    host ?= @config.host
-    port ?= @config.port
-    @listen(port,host)
-    console.log "Site serving on #{host}:#{port}..."
+    @runningHost = host || @config.host
+    @runningPort = port || @config.port
+    @listen(@runningPort,@runningHost)
 
   ###
   Use simple cache
   ###
   useCache: (cache)->
-    # throw new Error('Not Implemented yet!')
+    throw new Error('useCache Not Implemented yet!')
     config = @config
     onRes = (proxyRes,res) ->
               return unless res.cacheKey && !proxyRes.shouldNotCache
@@ -141,6 +142,80 @@ class Site extends Server
 
     }
 
+  _handleProxyAPI:(req,res)->
+    action = req.url.slice(@config.api.length).split(/\/|\?/)[0]
+    if ProxiteAPI.hasOwnProperty(action)
+      ProxiteAPI[action].call(this,req,res)
+    else
+      badRequest(res,"Invalid Proxy API Action: #{action};\n URL: #{req.url}" )
+
+  _prepare: () ->
+    originConfig = @config
+    _this = this
+    # ignore headers
+    reqIgnoreHeaders = _reqIgnoreHeaders
+    resIgnoreHeaders = _resIgnoreHeaders
+    unless @config.enableCookie
+      reqIgnoreHeaders = reqIgnoreHeaders.concat(["cookie"])
+      resIgnoreHeaders = resIgnoreHeaders.concat(["set-cookie"])
+
+    @use {
+      before:(req,res,next,opt) ->
+        req.localConfig = config = misc.clone originConfig
+        return _this._handleProxyAPI(req,res) if config.isProxyAPI req.url
+
+        result = revertParseUrl(opt.path,config)
+        config.proxyTarget = target = result.target
+        return forbidden(res,'Forbidden Host: '+target.host) if !result.allowed
+        config.location = location = { path: req.url }
+        location.baseRoot = result.baseRoot
+        location.ctrlType = result.ctrlType
+
+        # redirect "/http://default-upstream-host/path/?_WeedProxiteCtrl=x" to "/path/?_WeedProxiteCtrl=x"
+        # return redirect(res,rewrite.addCtrlParam(target.path,config)) if result.redundant
+        return redirect(res,target.path || '/') if result.redundant
+        # redirect "/http://upstream" to "/http://upstream/"
+        return redirect(res,req.url.replace(/($|\?)/,'/$1')) if target.path[0]!='/'
+
+        opt.headers.host = opt.host = target.host
+        opt.protocol = target.protocol
+        opt.path = target.path || '/'
+
+        if req.headers.origin # set access rules only when CORS request Origin header present
+          res.setHeader('Access-Control-Allow-Origin',req.origin)
+          res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept')
+
+        cacheCtrl = config.cacheControl
+        res.setHeader 'Cache-Control', ('max-age=' + cacheCtrl.maxAge +
+                                        ', stale-while-revalidate=' + cacheCtrl.staleWhileRevalidate +
+                                        ', stale-if-error=' + cacheCtrl.staleIfError)
+
+        res.setHeader(k,v) for k,v of secureHeaders
+        for h in ['origin','referer']
+          v = opt.headers[h]
+          continue unless v
+          [_,_host,_path] = misc.parseUrl(v)
+          if _host == req.headers.host || _host == req.host || config.isSelfHost _host
+            opt.headers[h] = revertUrl(_path,config)
+
+        delete opt.headers[h] for h in reqIgnoreHeaders  #ignore headers
+        next()
+
+      ###
+      Relocation
+      ###
+      after: (proxyRes,res,next,proxyReq,req) ->
+        proxyRes.headers[k] = v for k,v of secureHeaders
+        delete proxyRes.headers[h] for h in resIgnoreHeaders  #ignore headers
+        location = proxyRes.headers.location
+        return next() unless location
+        location = rewrite.url location,req.localConfig
+        if ! misc.isDomainUrl location # jumping to allowed domain
+          location = rewrite.addCtrlParam(location,config)
+        proxyRes.headers.location = location
+        return next()
+    }
+
   _initTemplates: () ->
     m = {
       manifest: 'manifest.appcache',
@@ -161,7 +236,7 @@ copyFolder = (from,to,override) ->
       copyFolder src,target,override
     else
       name = path.basename(target)
-      if !fs.existsSync(target) || (override && name!='config.js' && name!='site.js')
+      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js')
         copyFile src,target
 
 copyFile = (src,target) ->
@@ -191,25 +266,92 @@ forbidden = (res, msg = '') ->
   res.writeHead(403)
   res.end("<h1>403 Forbidden</h1><p>#{msg}</p>")
 
+redirect = (res,location) ->
+  res.writeHead(301,{location: location })
+  res.end()
+
 
 ###
-Supported Proxy API Actions, i.e. /-proxite-/$action/
+Revert target url from req.url
+@param {String} p  url path like '/http://www.upstream.com/a.html'
+@param {Object} config
 ###
-supportedProxyActions = new Set(['raw','iframe','static','status','manifest.appcache'])
+revertUrl = (p,config) ->
+  if /^\/https?:/i.test p
+    # sometimes browser will reduce '/http://www' to '/http:/www'
+    return p.slice(1).replace /^(https?:\/)([^\/].+)$/i,'$1/$2' # fixDoubleSlash
+  else
+    return config.upstream + p
 
-PROXITE_XHR_HEADER = 'x-proxite-xhr' # indicate request issued by WeedProxite XMLHttpRequest wrapper
+
+###
+Revert parse target url from req.url
+@param {String} p  url path like '/http://www.upstream.com/a.html'
+@param {Object} config
+@return {
+  target:{
+    // 'http://subdomain.upstream.com/path/'
+    href:String,
+    host:String,
+    path:String,
+    protocol:Enum(http:|https:)
+  },
+  baseRoot:String, // '/' or '/$origin/', see `rewrite.url`
+  ctrlType:String, //  e.g. raw|iframe in url query string '?_weedProxiteCtrl=iframe'
+  allowed:Boolean, // if host is allowed
+  // if target host is default upstream and specified host in url would be redundant
+  // i.e. /http://default-upstream/path/  should be redirected to /path/
+  redundant:Boolean
+}
+###
+revertParseUrl = (p,config) ->
+  `var path;`
+  origin = ''; redundant = false; allowed = false;
+  host = ''; path = ''; baseRoot = '/' ;
+  ctrlType = ''
+  if ~p.indexOf config.outputCtrlParamName
+    u = url.parse(p)
+    qs = querystring.parse(u.query)
+    ctrlType = qs[config.outputCtrlParamName]
+
+  if /^\/https?:/i.test p
+    p = revertUrl(p,config)
+    [scheme,host,path] = misc.parseUrl p
+    protocol = scheme + ':'
+    origin = scheme + '://' + host
+    baseRoot += origin + '/'
+    allowed = config.allowHost host
+    redundant = config.isUpstreamHost host
+  else
+    allowed = true
+    host = config.upstreamHost
+    path = p
+    protocol = config.upstreamScheme + ':'
+    p = config.upstream + p
+
+  # path = path.replace(config._outputCtrlQueryRe,'') if ctrlType
+
+  return {
+    target:{
+      protocol: protocol,
+      host:host, path:path,
+    },
+    ctrlType:ctrlType,
+    baseRoot:baseRoot,
+    allowed:allowed,
+    redundant:redundant
+  }
+
+
+
 matchRewriteCond = (req) ->
-  req.proxyAction != 'raw' &&
-  !req.headers['x-requested-with'] &&
-  !req.headers[PROXITE_XHR_HEADER]
+  return false if req.method !='GET' && req.method !='POST'
+  ctrlType = req.localConfig.location.ctrlType
+  return false if ctrlType == 'raw'
+  return false if req.headers['x-requested-with']
+  return true
 
-normalCacheHeader = (res,config)->
-  cacheCtrl = config.cacheControl
-  cacheCtrl = 'max-age=' + cacheCtrl.maxAge +
-                ', stale-while-revalidate=' + cacheCtrl.staleWhileRevalidate +
-                ', stale-if-error=' + cacheCtrl.staleIfError;
 
-  res.setHeader('Cache-Control', cacheCtrl)
 # Make sure to send these security headers are included in all responses.
 # See: https://securityheaders.com/
 secureHeaders = {
@@ -230,187 +372,103 @@ _reqIgnoreHeaders = [ # hide headers to upstream
   'X-Forwarded-Server',
   'X-Varnish',
   'Via',
-  'X-Amz-Cf-Id',
-  PROXITE_XHR_HEADER
+  'X-Amz-Cf-Id'
 ].map (s)-> s.toLowerCase()
 
-_resIgnoreHeaders = [ # remove headers from upstream
+_resIgnoreHeaders = [ # remove headers from upstream response
   'X-Original-Content-Encoding'
 ].map (s)-> s.toLowerCase()
 
-Site.middleware =
-  ignoreHeaders: () ->
-    reqHeaders = _reqIgnoreHeaders
-    resHeaders = _resIgnoreHeaders
-    unless @config.enableCookie
-      reqHeaders = reqHeaders.concat(["cookie"])
-      resHeaders = resHeaders.concat(["set-cookie"])
 
-    return @use {
-      before:(req,res,next,opt) ->
-        for h in reqHeaders
-          delete opt.headers[h] if opt.headers[h]
-        next()
-      after:(proxyRes,res,next) ->
-        for h in resHeaders
-          delete proxyRes.headers[h] if proxyRes.headers[h]
-        next()
-    }
+rewriteCSS = {
+  mime:'text/css',
+  match: matchRewriteCond
+  after: (proxyRes,res,next,proxyReq,req) ->
+    cb = (err,body)->
+      return next(err) if err
+      proxyRes.body = rewrite.css(body,req.localConfig)
+      next()
 
-  rewriteCSS: () ->
-    config = @config
-    return @use {
-      mime:'text/css',
-      match: matchRewriteCond
-      after: (proxyRes,res,next,proxyReq,req) ->
-        proxyRes.body = rewrite.css(proxyRes.body,req.proxyTarget.origin,config)
-        next()
-    }
+    proxyRes.withTextBody cb
+}
 
-  rewriteHTML: () ->
-    config = @config
-    return @use {
-      mime:'text/html',
-      match: (req) ->
-        return false if !~(req.headers.accept || '').indexOf('text/html')
-        return matchRewriteCond.apply(this,arguments)
+rewriteHTML = {
+  mime:'text/html',
+  match: (req) ->
+    return false if !~(req.headers.accept || '').indexOf('text/html')
+    return matchRewriteCond.apply(this,arguments)
 
-      after: (proxyRes,res,next,proxyReq,req) ->
-        return next() if proxyRes.statusCode >=400 || proxyRes.statusCode < 200
+  after: (proxyRes,res,next,proxyReq,req) ->
+    config = req.localConfig
+    ctrlType = config.location.ctrlType
+    if proxyRes.statusCode != 200 || req.method != 'GET' || ctrlType == 'iframe'
+      config.enableAppcache = false
 
-        headers = proxyRes.headers
-        #delete headers['expires'] # for firexo
-        #delete headers['last-modified']
-        delete headers['cache-control'] # use default cache control
-        delete headers['pragma'] if headers['pragma']=='no-cache'
-        configData = config.toClient()
-        body = proxyRes.body
-        configData.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1] || config.defaultPageTitle
-        configData.pageContent = body
-        configData.proxyTarget = req.proxyTarget
-        configData.showMirrorNotice = false if req.method != 'GET'
-        configData.enableAppcache = false if req.proxyAction == 'iframe' || req.method !='GET'
-        configData.charset = proxyRes.charset || config.upstreamDefaultCharset
-        configData.json = misc.escapeUnicode(JSON.stringify(configData).replace(/<\/script>/ig,'<\\/script>'))
-        body = config._tpl.main({config:configData})
-        proxyRes.body = body
-        next()
-    }
+    config.showMirrorNotice = false if req.method != 'GET'
+    headers = proxyRes.headers
+    #delete headers['expires'] # for firefox
+    #delete headers['last-modified']
+    headers['cache-control']='' # use default cache control
+    headers['pragma']='' if headers['pragma']=='no-cache'
 
-  serveCrossDomainXML: () ->
-    return @use {
-      mime:/\bxml\b/i,
-      after: (proxyRes,res,next,_,req) ->
-        body = proxyRes.body
-        origin = req.origin
-        endTag = '</cross-domain-policy>'
-        return unless ~body.indexOf(endTag)
-        et = new RegExp(endTag,'g')
-        body = body.replace(et,'<site-control permitted-cross-domain-policies="master-only"/>'+endTag)
-        body = body.replace(et,'<allow-http-request-headers-from domain="'+origin+'" headers="*"/>'+endTag)
-        body = body.replace(et,'<allow-access-from domain="'+origin+'"/>'+endTag)
-        proxyRes.body = body
-        next()
-    }
+    cb = (err,body) ->
+      return next(err) if err
+      config.pageTitle = /<title[^<>]*>([^<>]*)<\/title>/i.exec(body)?[1] || config.defaultPageTitle
+      config.pageContent = body
+      config.charset = proxyRes.charset || config.upstreamDefaultCharset
+      #config.json = misc.escapeUnicode(JSON.stringify(config.toClient()).replace(/<\/script>/ig,'<\\/script>'))
+      config.json = JSON.stringify(config.toClient()).replace(/<\/script>/ig,'<\\/script>')
+      proxyRes.body = config._tpl.main({config:config})
+      next()
 
-  serveProxiteStatic: () ->
-    staticServer = new nodeStatic.Server(
-                      path.join(@config.root,'static'),
-                      {serverInfo:'Static'})
-    return @use {
-      match: (req) -> req.proxyAction == 'static'
-      before: (req,res,next,opt) ->
-        req.url = opt.path
-        return staticServer.serve(req,res)
-    }
+    proxyRes.withTextBody {defaultCharset:config.upstreamDefaultCharset},cb
+}
 
-  serveAppcache: () ->
-    config = @config
-    return @use {
-      match: (req) -> req.proxyAction == 'manifest.appcache'
-      before: (req,res) ->
-        res.writeHead(200,{
-          # If set Cache-Control:no-cache,firefox will ignore appcache
-          # See Appcache Facts:  http://appcache.offline.technology/
-          'Cache-Control':'max-age=0',
-          'Content-Type':'text/cache-manifest',
-          'Access-Control-Allow-Origin':'*'  # For JS to ping
-        })
-        qs = querystring.parse(url.parse(req.url).query)
-        clientVersion = qs.version
-        configData = config.toClient()
-        if clientVersion && clientVersion != configData.version
-          configData.version = (+new Date)/60000|0  # one minute stamp
-        body = config._tpl.manifest({config:configData})
-        return res.end(body)
-    }
+rewriteCrossDomainXML =  {
+  mime:/\bxml\b/i,
+  after: (proxyRes,res,next,_,req) ->
+    cb = (err,body) ->
+      return next(err) if err
+      origin = req.origin
+      endTag = '</cross-domain-policy>'
+      return next() unless ~body.indexOf(endTag)
+      et = new RegExp(endTag,'g')
+      body = body.replace(et,'<site-control permitted-cross-domain-policies="master-only"/>'+endTag)
+      body = body.replace(et,'<allow-http-request-headers-from domain="'+origin+'" headers="*"/>'+endTag)
+      body = body.replace(et,'<allow-access-from domain="'+origin+'"/>'+endTag)
+      proxyRes.body = body
+      next()
 
-  serveStatus: () ->
-    return @use {
-      match: (req) -> req.proxyAction == 'status'
-      before: (req,res) ->
-        return badRequest(res,'Status API not implemented yet!')
-    }
+    proxyRes.withTextBody {defaultCharset:req.localConfig.upstreamDefaultCharset},cb
 
-  prepare: () ->
-    config = @config
-    return @use {
-      before: (req,res,next,opt) ->
-        # sometimes browser will reduce '/http://www' to '/http:/www'
-        opt.path = opt.path.replace /^([^?]*\/https?:\/)([^\/].+)/i,'$1/$2' # fixDoubleSlash
-        reverted = rewrite.revertUrl(opt.path,config)
-        action = req.proxyAction = reverted.action
-        if action? && !supportedProxyActions.has(action)
-          return badRequest(res,"Invalid Proxy API Action: #{action};\n URL: #{req.url}" )
-
-
-        target = url.parse(reverted.url)
-        if !reverted.allowed
-          return forbidden(res, 'Forbidden Host: ' + target.host)
-        if !reverted.isDefault && config.isUpstreamHost target.host && !action
-          # redirect "/http://default-upstream-host/path/" to "/path/"
-          res.writeHead(301,{location: target.path})
-          return res.end()
-
-        req.proxyTarget = reverted
+}
 
 
 
-        origin = req.headers.origin || req.headers.referer
-        req.origin = (origin && /^https?:\/\/[^\/]+/.exec(origin)?[0]) || (req.protocol+'://'+req.headers.host)
+ProxiteAPI = {
+  'static':(req,res,staticServer) ->
+    req.url = req.url.slice(req.localConfig.api.length + 'static'.length)
+    return @_staticServer.serve(req,res)
+  'manifest.appcache':(req,res) ->
+    config = req.localConfig
+    res.writeHead(200,{
+      # If set Cache-Control:no-cache,firefox will ignore appcache
+      # See Appcache Facts:  http://appcache.offline.technology/
+      'Cache-Control':'max-age=0',
+      'Content-Type':'text/cache-manifest',
+      'Access-Control-Allow-Origin':'*'  # For JS to ping
+    })
+    qs = querystring.parse(url.parse(req.url).query)
+    clientVersion = qs.version
+    if clientVersion && clientVersion != config.version
+      config.version = (+new Date)/180000|0  # three minutes stamp
+    body = config._tpl.manifest({config:config})
+    return res.end(body)
+  'status': (req,res)->
+    return badRequest(res,'Status API not implemented yet!')
+}
 
-        opt.headers.host = opt.host = target.host
-        opt.protocol = target.protocol
-        opt.path = target.path
 
-        normalCacheHeader(res,config)
-        res.setHeader('Access-Control-Allow-Origin',req.origin)
-        res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept')
-        res.setHeader(k,v) for k,v of secureHeaders
-
-        `var path;` # Holly shit
-        for h in ['origin','referer']
-          v = opt.headers[h]
-          continue unless v
-          {host,path} = url.parse(v)
-          if host == req.headers.host || config.isSelfHost host
-            opt.headers[h] = rewrite.revertUrl(path,config).url
-
-        next()
-
-      ###
-      Relocation
-      ###
-      after: (proxyRes,res,next,proxyReq,req) ->
-        proxyRes.headers[k]=v for k,v of secureHeaders
-
-        location = proxyRes.headers.location
-        return next() unless location
-        proxyRes.headers.location  = rewrite.url location,req.proxyTarget.origin,config
-        return next()
-    }
-
-Site.prototype[k]=v for k,v of Site.middleware
 
 
 module.exports = Site

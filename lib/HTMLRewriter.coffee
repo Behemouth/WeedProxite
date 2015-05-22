@@ -9,7 +9,7 @@ class HTMLRewriter
 
   ###
   Similar to html.replace(),but exec after stashed style,script and comments
-  so there is no more interference
+  so there is no more noise
   ###
   replace: (pattern,substitution) ->
     @_replaceRules.push [pattern,substitution]
@@ -36,7 +36,7 @@ class HTMLRewriter
     g = if options.first then '' else 'g'
     special = tag == 'script' || tag =='style'
     if options.attr
-      re = '(<'+tag+'\\s+[^<>]*\\b'+options.attr+'\\s*=\\s*[\'"]?)\\s*([^\'"<>]+)\\s*([\'"]?[^<>]*>)'
+      re = '(<'+tag+'\\s+[^<>]*\\b'+options.attr+'\\s*=\\s*([\'"]?))\\s*([^<>]+?)\\s*(\\2[^<>]*>)'
       re = new RegExp(re,'i'+g)
     if special
       @_specialRules.push({tail:'</'+tag+'>',re:re,rewrite:options.rewrite})
@@ -73,7 +73,7 @@ class HTMLRewriter
 
     html = html.replace re,stash
 
-    reRuleRewrite = (whole,head,value,tail)-> head + (rule.rewrite value,whole) + tail
+    reRuleRewrite = (whole,head,quote,value,tail)-> head + (rule.rewrite value,whole) + tail
 
     for rule in @_reRules
       html = html.replace rule.re, reRuleRewrite
@@ -81,7 +81,7 @@ class HTMLRewriter
     for rule in @_specialRules
       tail = rule.tail
       for k,matched of stashed[tail]
-        if rule.re # attr
+        if rule.re # rewrite attr value
           matched[0] = matched[0].replace rule.re,reRuleRewrite
         else # rewrite content
           matched[1] = rule.rewrite(matched[1])
