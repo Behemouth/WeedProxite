@@ -2,6 +2,7 @@
 Config = require './Config'
 misc = require './misc'
 rewrite = require './rewrite'
+HTMLRewriter = require './HTMLRewriter'
 
 noop = new Function
 
@@ -194,4 +195,10 @@ request = (opts)->
   return xhr
 
 
-window.WeedProxite = {Client:Client,rewrite:rewrite,misc:misc}
+window.WeedProxite = {
+  Client:Client,
+  rewrite:rewrite,
+  misc:misc,
+  HTMLRewriter:HTMLRewriter,
+  Config:Config
+}

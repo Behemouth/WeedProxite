@@ -33,10 +33,10 @@ class HTMLRewriter
   ###
   rule:(options)->
     tag = (options.tag || '[a-z][a-z0-9]+')
-    g = if options.first then '' else 'g'
     special = tag == 'script' || tag =='style'
+    g = if options.first || special then '' else 'g'
     if options.attr
-      re = '(<'+tag+'\\s+[^<>]*\\b'+options.attr+'\\s*=\\s*([\'"]?))\\s*([^<>]+?)\\s*(\\2[^<>]*>)'
+      re = '(<'+tag+'\\b[^<>]*\\s'+options.attr+'\\s*=\\s*([\'"]?))\\s*([^<>]+?)\\s*(\\2[^<>]*>)'
       re = new RegExp(re,'i'+g)
     if special
       @_specialRules.push({tail:'</'+tag+'>',re:re,rewrite:options.rewrite})
