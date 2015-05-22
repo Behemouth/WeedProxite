@@ -29,7 +29,7 @@ Run Mirror Proxy Site.
   };
   ```
 
-5. Just run: `proxite run` or use PM2 `pm2 start site.js --name my-mirror`
+5. Just run: `proxite run` or use PM2 `pm2 start main.js --name my-mirror`
 
 6. Don't forget to set a daily restart Node.js server cronjob coz of Node.js memory leaks.
 
