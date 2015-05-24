@@ -330,6 +330,7 @@ revertParseUrl = (p,config) ->
     p = config.upstream + p
 
   # path = path.replace(config._outputCtrlQueryRe,'') if ctrlType
+  ctrlType = '' if ctrlType != 'iframe' && ctrlType != 'raw'
 
   return {
     target:{
