@@ -358,6 +358,7 @@ matchRewriteCond = (req) ->
 secureHeaders = {
   'X-Content-Type-Options':'nosniff'
   'X-Download-Options':'noopen'
+  'X-Frame-Options': 'samorigin'
   'X-XSS-Protection':'1; mode=block'
 }
 
