@@ -6,6 +6,12 @@ HTMLRewriter = require './HTMLRewriter'
 
 parseUrl = misc.parseUrl
 
+###
+Simple html encode only replace "<>"
+###
+encodeHTML = (html) ->
+  return html.replace(/</g,'&lt;').replace(/>/g,'&gt;')
+
 
 rewrite =
   ###
@@ -53,13 +59,13 @@ rewrite =
                       rh = rewrite.url href,config
                       if misc.isDomainUrl rh # tertiary domain
                         # disableRewriteInternal = true
-                        return href
+                        return encodeHTML(href)
                       else if misc.isDomainUrl href
                         href = 'http:' + href if href.slice(0,2)=='//'
                         [scheme,host,path] = parseUrl href
                         baseRoot = '/' + scheme + '://' + host + '/'
 
-                      return rh
+                      return encodeHTML(rh)
 
     rt = new HTMLRewriter(html)
     rt.rule({tag:'base',attr:'href',first:true,rewrite: rewriteBase})
@@ -70,7 +76,7 @@ rewrite =
     https://images.weserv.nl/?url=www.google.com/images/srpr/logo11w.png
     ###
     rt = new HTMLRewriter(html)
-    reUrl = (src)-> rewrite.url src,config,baseRoot
+    reUrl = (src)-> encodeHTML(rewrite.url src,config,baseRoot)
       # return rewrite.url src,config,baseRoot if ! disableRewriteInternal
       # return if misc.isDomainUrl src then rewrite.url src,config,baseRoot else src
 
@@ -82,13 +88,13 @@ rewrite =
 
     reframe = (url) ->
       url = reUrl url
-      return url if misc.isDomainUrl url
-      return rewrite.addCtrlParam url,config,'iframe'
+      return encodeHTML(url) if misc.isDomainUrl url
+      return encodeHTML(rewrite.addCtrlParam url,config,'iframe')
 
     rt.rule({tag:'iframe',attr:'src',rewrite:reframe})
     rt.rule({tag:'frame',attr:'src',rewrite:reframe})
 
-    reCSS = (css)-> rewrite.css css,config,baseRoot
+    reCSS = (css)-> encodeHTML(rewrite.css css,config,baseRoot)
     rt.rule({tag:'style',rewrite:reCSS})
     rt.rule({attr:'style',rewrite:reCSS})
 
