@@ -48,6 +48,7 @@ setupProxite = ()->
   config.port = TEST_PROXY_PORT
   config.root = siteRoot
   proxite = new Site config
+  proxite.useDefault()
   proxite.run()
   proxiteHost = '127.0.0.1:'+ TEST_PROXY_PORT
 
