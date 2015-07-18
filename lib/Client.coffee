@@ -47,6 +47,10 @@ class Client
     if @config.showMirrorNotice && @tipHTML
       @rewriter.replace /(<body\b[^>]*>)/ig,"$1"+@tipHTML
 
+    if @config.showJiathis && top == self
+      jiathisCode = '<script type="text/javascript" src="/http://v3.jiathis.com/code/jiathis_r.js?move=0&btn=r4.gif" charset="utf-8"><\/script>';
+      @rewriter.replace /(<body\b[^>]*>)/ig,"$1"+jiathisCode
+
     mirrorLinks = @config.mirrorLinks
     href = location.href
     @currentMirror = ''
@@ -71,7 +75,9 @@ class Client
     writeDocument = ()->
                       document.open()
                       document.write(html)
-                      document.close()
+                      close = () -> document.close()
+                      setTimeout(close,10)
+
 
     if document.readyState !='complete'
       window.onload = ()-> setTimeout writeDocument,100
@@ -79,7 +85,7 @@ class Client
       setTimeout writeDocument,100
 
   _fetchPage:()->
-    url = _config.api + 'raw/' + _config.proxyTarget.url;
+    url = _config.api + 'raw/' + _config.proxyTarget.href;
     fail = ()=>
               warn 'Current mirror is not available!\nTrying other mirrors...Please wait...'
               testOtherMirrors(@altMirrorLinks)

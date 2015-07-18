@@ -5,6 +5,7 @@ misc = WeedProxite.misc
 
 main = (host,port)->
   site = new Site(__dirname)
+  site.useDefault()
   site.run(host,port)
   return site
 

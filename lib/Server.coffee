@@ -327,6 +327,9 @@ _withTextBody = (opts,cb) ->
   decodeBody = (err) ->
     return cb(err) if err
     bodyBuffer = _this.body
+    unless Buffer.isBuffer(bodyBuffer)
+      _this.body = ""
+      return cb(null,"") # doesn't have body
     body = iconv.decode bodyBuffer,tryCharset
     body = (body + " ").slice(0,-1) # work aroud Node.js buffer encoding bug
     _this.body = body

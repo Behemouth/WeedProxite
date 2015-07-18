@@ -70,6 +70,7 @@ class Site extends Server
 
     #@config._outputCtrlQueryRe = new RegExp('\\b'+@config.outputCtrlParamName+'=[^=&?#]*','g')
 
+  useDefault: () ->
     @use rewriteCrossDomainXML
     @use rewriteCSS
     @use rewriteHTML
@@ -236,7 +237,7 @@ copyFolder = (from,to,override) ->
       copyFolder src,target,override
     else
       name = path.basename(target)
-      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js')
+      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js' && name!='main.html')
         copyFile src,target
 
 copyFile = (src,target) ->
@@ -402,6 +403,7 @@ rewriteHTML = {
 
   after: (proxyRes,res,next,proxyReq,req) ->
     config = req.localConfig
+    return next() if config.disableRewriteHTML
     ctrlType = config.location.ctrlType
     if proxyRes.statusCode != 200 || req.method != 'GET' || ctrlType == 'iframe'
       config.enableAppcache = false
@@ -453,6 +455,10 @@ ProxiteAPI = {
     return @_staticServer.serve(req,res)
   'manifest.appcache':(req,res) ->
     config = req.localConfig
+    unless config.enableAppcache
+      res.writeHead(404)
+      res.end()
+
     res.writeHead(200,{
       # If set Cache-Control:no-cache,firefox will ignore appcache
       # See Appcache Facts:  http://appcache.offline.technology/
