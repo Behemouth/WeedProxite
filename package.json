@@ -49,7 +49,7 @@
     "name": "Behemouth"
   },
   "scripts": {
-    "__postinstall":"node ./node_modules/.bin/coffee --compile lib bin",
+    "postinstall":"node ./node_modules/coffee-script/bin/coffee --compile lib bin",
     "_postinstall":"./node_modules/.bin/coffee --compile .; ./node_modules/.bin/browserify --debug -t coffeeify ./lib/Client.coffee > ./lib/tpl/static/bundle.js",
     "test": "tap test/*.js"
   },
