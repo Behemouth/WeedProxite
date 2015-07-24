@@ -26,8 +26,10 @@ upstream1 = null ;
 upstream1Host = null;
 upstream2 = null ;
 upstream2Host = null;
+upstream2HostEscaped = null;
 proxite = null;
 proxiteHost = null;
+
 
 
 siteRoot = null
@@ -39,6 +41,7 @@ setupProxite = ()->
   upstream2 = http.createServer()
   upstream2.listen TEST_UPSTREAM2_PORT
   upstream2Host = '127.0.0.1:'+TEST_UPSTREAM2_PORT
+  upstream2HostEscaped =  '127.0.0.1%3A'+TEST_UPSTREAM2_PORT
 
   siteRoot = tempDir()
   Site.init siteRoot
@@ -76,7 +79,7 @@ describe 'Site Base',()->
     @import url("http://example.com/style.css");
     """
     rewritedCSS = """
-    @import "/http://#{upstream2Host}/style.css";
+    @import "/http%3A//#{upstream2HostEscaped}/style.css";
     @import url("http://example.com/style.css");
     """
 
@@ -95,15 +98,15 @@ describe 'Site Base',()->
 
     iframeQuery = proxite.config.outputCtrlParamName+'=iframe'
     rewritedPage = """
-    <a href="/http://#{upstream2Host}/path/index.html">Link</a>
-    <a href="/http://#{upstream2Host}/">Link</a>
+    <a href="/http%3A//#{upstream2HostEscaped}/path/index.html">Link</a>
+    <a href="/http%3A//#{upstream2HostEscaped}/">Link</a>
     <a href="index.html">Link</a>
-    <div style="background:url('/http://#{upstream2Host}/bg.png')">Bg</div>
-    <style>body {background:url(/http://#{upstream2Host}/bg.png);}</style>
+    <div style="background:url('/http%3A//#{upstream2HostEscaped}/bg.png')">Bg</div>
+    <style>body {background:url(/http%3A//#{upstream2HostEscaped}/bg.png);}</style>
     <script>var html='<a href="/">Should not touch me</a>'</script>
-    <iframe src="/http://#{upstream2Host}/path/page.html?#{iframeQuery}"></iframe>
-    <iframe src="/http://#{upstream2Host}/path/page.html?a=45&#{iframeQuery}"></iframe>
-    <iframe src="/http://#{upstream2Host}/path/page.html?#{iframeQuery}#a=45"></iframe>
+    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}"></iframe>
+    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?a=45&#{iframeQuery}"></iframe>
+    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}#a=45"></iframe>
     <iframe src="a.html?#{iframeQuery}"></iframe>
     """
 

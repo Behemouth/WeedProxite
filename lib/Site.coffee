@@ -315,6 +315,10 @@ revertParseUrl = (p,config) ->
     qs = querystring.parse(u.query)
     ctrlType = qs[config.outputCtrlParamName]
 
+  if /^\/https?%3A/i.test p
+    # Fix colon in url path caused error on Azure websites
+    p = p.replace(/%3A/gi,':')
+
   if /^\/https?:/i.test p
     p = revertUrl(p,config)
     [scheme,host,path] = misc.parseUrl p
