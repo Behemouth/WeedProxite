@@ -32,10 +32,10 @@
     "finalhandler":"~0.3.4",
     "body-parser":"~1.12.2",
     "iconv-lite":"~0.4.8",
-    "browserify":"~9.0.4",
-    "coffee-script":"~1.9.3",
+    "browserify":"=9.0.4",
+    "coffee-script":"=1.9.3",
     "pm2":"~0.12.10",
-    "uglifyjs":"~2.4.10",
+    "uglifyjs":"=2.4.10",
     "coffeeify":"~1.0.0"
   },
   "devDependencies": {
@@ -50,7 +50,7 @@
     "name": "Behemouth"
   },
   "scripts": {
-    "postinstall":"node ./node_modules/coffee-script/bin/coffee --compile . \r\n node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js \r\n node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle",
+    "postinstall":"bin/postinstall.sh",
     "test": "tap test/*.js"
   },
   "license": "MIT"
