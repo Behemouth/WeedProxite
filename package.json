@@ -50,7 +50,7 @@
     "name": "Behemouth"
   },
   "scripts": {
-    "postinstall":"node ./bin/postinstall.js",
+    "postinstall":"node ./bin/postinstall",
     "test": "tap test/*.js"
   },
   "license": "MIT"
