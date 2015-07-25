@@ -1,0 +1,11 @@
+{
+  "name": "Mirror Site",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node main.js localhost 1337"
+  },
+  "dependencies": {
+    "WeedProxite": "git+https://github.com/Behemouth/WeedProxite.git"
+  }
+}

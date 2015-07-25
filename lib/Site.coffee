@@ -63,7 +63,11 @@ class Site extends Server
 
     @config.manifest = @config.api + 'manifest.appcache'
     @config.version = calcVersion @root
-    @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
+
+    if fs.existsSync(path.join(@root,'static'))
+      @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
+    else
+      @_staticServer = new nodeStatic.Server(path.join(__dirname,'tpl','static'),{serverInfo:'Static'})
 
     @_initTemplates()
     @_prepare()
@@ -224,7 +228,10 @@ class Site extends Server
     }
     tpl = {}
     for k,v of m
-      tpl[k] = ejs.compile(fs.readFileSync(path.join(@root,v),{encoding:'utf-8'}))
+      if fs.existsSync(path.join(@root,v))
+        tpl[k] = ejs.compile(fs.readFileSync(path.join(@root,v),{encoding:'utf-8'}))
+      else
+        tpl[k] = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',v),{encoding:'utf-8'}))
 
     @config._tpl = tpl
 

@@ -80,7 +80,7 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 
 program.command('init [root]')
        .description('Init site, root param is the site root directory')
-       .option('--override','If override exist files except config.js')
+       .option('--override','Override exist files except config.js main.js and main.html')
        .option('--debug','Generate debug version bundle.js')
        .action(initSite)
 
