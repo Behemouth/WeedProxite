@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-exec = require("child_process").execSync;
-exec('node ./node_modules/coffee-script/bin/coffee --compile .');
-exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js');
-exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
+exec = require("child_process").exec;
+
+exec('node ./node_modules/coffee-script/bin/coffee --compile .',browserify);
+
+function browserify() {
+  exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js',uglifyjs);
+}
+
+function uglifyjs() {
+  exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
+}
