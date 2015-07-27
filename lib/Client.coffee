@@ -47,10 +47,6 @@ class Client
     if @config.showMirrorNotice && @tipHTML
       @rewriter.replace /(<body\b[^>]*>)/ig,"$1"+@tipHTML
 
-    if @config.showJiathis && top == self
-      jiathisCode = '<script type="text/javascript" src="/http://v3.jiathis.com/code/jiathis_r.js?move=0&btn=r4.gif" charset="utf-8"><\/script>';
-      @rewriter.replace /(<body\b[^>]*>)/ig,"$1"+jiathisCode
-
     mirrorLinks = @config.mirrorLinks
     href = location.href
     @currentMirror = ''
