@@ -41,7 +41,7 @@ setupProxite = ()->
   upstream2 = http.createServer()
   upstream2.listen TEST_UPSTREAM2_PORT
   upstream2Host = '127.0.0.1:'+TEST_UPSTREAM2_PORT
-  upstream2HostEscaped =  '127.0.0.1%3A'+TEST_UPSTREAM2_PORT
+  upstream2HostEscaped =  '127.0.0.1-colon-'+TEST_UPSTREAM2_PORT
 
   siteRoot = tempDir()
   Site.init siteRoot
@@ -79,7 +79,7 @@ describe 'Site Base',()->
     @import url("http://example.com/style.css");
     """
     rewritedCSS = """
-    @import "/http%3A//#{upstream2HostEscaped}/style.css";
+    @import "/http-colon-//#{upstream2HostEscaped}/style.css";
     @import url("http://example.com/style.css");
     """
 
@@ -98,15 +98,15 @@ describe 'Site Base',()->
 
     iframeQuery = proxite.config.outputCtrlParamName+'=iframe'
     rewritedPage = """
-    <a href="/http%3A//#{upstream2HostEscaped}/path/index.html">Link</a>
-    <a href="/http%3A//#{upstream2HostEscaped}/">Link</a>
+    <a href="/http-colon-//#{upstream2HostEscaped}/path/index.html">Link</a>
+    <a href="/http-colon-//#{upstream2HostEscaped}/">Link</a>
     <a href="index.html">Link</a>
-    <div style="background:url('/http%3A//#{upstream2HostEscaped}/bg.png')">Bg</div>
-    <style>body {background:url(/http%3A//#{upstream2HostEscaped}/bg.png);}</style>
+    <div style="background:url('/http-colon-//#{upstream2HostEscaped}/bg.png')">Bg</div>
+    <style>body {background:url(/http-colon-//#{upstream2HostEscaped}/bg.png);}</style>
     <script>var html='<a href="/">Should not touch me</a>'</script>
-    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}"></iframe>
-    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?a=45&#{iframeQuery}"></iframe>
-    <iframe src="/http%3A//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}#a=45"></iframe>
+    <iframe src="/http-colon-//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}"></iframe>
+    <iframe src="/http-colon-//#{upstream2HostEscaped}/path/page.html?a=45&#{iframeQuery}"></iframe>
+    <iframe src="/http-colon-//#{upstream2HostEscaped}/path/page.html?#{iframeQuery}#a=45"></iframe>
     <iframe src="a.html?#{iframeQuery}"></iframe>
     """
 

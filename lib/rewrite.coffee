@@ -29,9 +29,9 @@ rewrite =
       [scheme,host,path] = parseUrl u
       if config.allowHost host
         # replace colon to avoid error in Azure websites
-        return if config.isUpstreamHost host then path else '/' + u.replace(/\:/g,'%3A')
+        return if config.isUpstreamHost host then path else '/' + u.replace(/:/g,'-colon-')
     else if u[0] == '/'
-      return baseRoot.replace(/\:/g,'%3A') + u.slice(1)
+      return baseRoot.replace(/:/g,'-colon-') + u.slice(1)
 
     return p # otherwise remain unchange
 

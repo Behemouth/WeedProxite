@@ -115,7 +115,7 @@
   var _config = <%- config.json %>;
   var client = new WeedProxite.Client();
   if (_config.showJiathis && top == self) {
-    var jiathisCode = '<script type="text/javascript" src="/http%3A//v3.jiathis.com/code/jiathis_r.js?move=0&btn=r4.gif" charset="utf-8"><\/script>';
+    var jiathisCode = '<script type="text/javascript" src="/http-colon-//v3.jiathis.com/code/jiathis_r.js?move=0&btn=r4.gif" charset="utf-8"><\/script>';
     client.rewriter.replace(/(<body\b[^>]*>)/ig,"$1"+jiathisCode);
   }
   client.run();

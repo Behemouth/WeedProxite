@@ -216,7 +216,7 @@ class Site extends Server
         return next() unless location
         location = rewrite.url location,req.localConfig
         if ! misc.isDomainUrl location # jumping to allowed domain
-          location = rewrite.addCtrlParam(location,config)
+          location = rewrite.addCtrlParam(location,req.localConfig)
         proxyRes.headers.location = location
         return next()
     }
@@ -244,7 +244,7 @@ copyFolder = (from,to,override) ->
       copyFolder src,target,override
     else
       name = path.basename(target)
-      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js' && name!='main.html')
+      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js')
         copyFile src,target
 
 copyFile = (src,target) ->
@@ -322,9 +322,9 @@ revertParseUrl = (p,config) ->
     qs = querystring.parse(u.query)
     ctrlType = qs[config.outputCtrlParamName]
 
-  if /^\/https?%3A/i.test p
-    # Fix colon in url path caused error on Azure websites
-    p = p.replace(/%3A/gi,':')
+  if /-colon-/i.test p
+    # Fix colon in url path caused error on Azure websites IIS
+    p = p.replace(/-colon-/g,':')
 
   if /^\/https?:/i.test p
     p = revertUrl(p,config)

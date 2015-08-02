@@ -14,6 +14,7 @@ case "$1" in
   'build')
     coffee --compile "$ROOT";
     browserify -t coffeeify "$ROOT/lib/Client.coffee" -o "$ROOT/lib/tpl/static/bundle.js";
+    uglifyjs  ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle;
     ;;
   'test')
     shift;
