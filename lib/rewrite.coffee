@@ -33,6 +33,13 @@ rewrite =
     else if u[0] == '/'
       return baseRoot.replace(/:/g,'-colon-') + u.slice(1)
 
+    ensureProto = config.ensureExternalLinkProtocol
+    if ensureProto != 'off' && /^https?:\/\//i.test(p)
+      if ensureProto == 'auto'
+        p = p.replace(/^https?:\/\//i,'//')
+      else if ensureProto == 'https'
+        p = p.replace(/^http:\/\//i,'https://')
+
     return p # otherwise remain unchange
 
   addCtrlParam: (path,config,ctrlType) ->

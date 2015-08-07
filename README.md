@@ -26,14 +26,18 @@ Run Mirror Proxy Site.
   module.exports = {
     upstream: "http://upstream-target-site.com",
     port:"1984",
-    mirrorLinks: ["http://your-mirror-site-domain:1984/"]
+    mirrorLinks: ["http://your-mirror-site-domain:1984/"],
+    allowHosts:[
+      "sub-domain-of.upstream-target-site.com",
+      "another-example-target-site.com"
+    ]
   };
   ```
 
 5. Just run: `proxite run` or use PM2 `pm2 start main.js --name my-mirror`
 
-6. Don't forget to set a daily restart Node.js server cronjob on production server when using HTTPS coz of Node.js memory leaks.
+6. Don't forget to set a daily restart Node.js server cronjob on production server if you are enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
 
 ## Config Options
 
-Please see `lib/Config.coffee`.
+More config options please see `lib/Config.coffee`.

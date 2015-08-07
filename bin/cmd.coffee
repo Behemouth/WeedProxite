@@ -34,12 +34,12 @@ initSite = (root,opts,cb) ->
   root ?= process.cwd()
   checkSiteRoot root
   if !opts.debug
-    Site.init root,opts.override
+    Site.init root
     cb && cb()
   else
     bundleJS = fs.createWriteStream(BUNDLE_JS)
     bundleJS.on 'finish',()->
-      Site.init root,opts.override
+      Site.init root
       console.log "Init successfully!Override:"+ (!!opts.override)
       cb && cb()
 
@@ -80,8 +80,8 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 
 program.command('init [root]')
        .description('Init site, root param is the site root directory')
-       .option('--override','Override exist files except config.js main.js and main.html')
-       .option('--debug','Generate debug version bundle.js')
+       # .option('--override','Override exist files except config.js main.js and main.html')
+       .option('--debug','Generate fresh debug version bundle.js, you need to set debug=true in config.js to use it')
        .action(initSite)
 
 

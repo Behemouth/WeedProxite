@@ -12,6 +12,11 @@ class Config
 
   defaultPageTitle:'Page Title'
 
+  ###
+  Debug option, in debug mode the client will load uncompressed bundle.js
+  ###
+  debug:false
+
   # Override HTTP Cache Control header
   # See: https://www.fastly.com/blog/stale-while-revalidate/
   cacheControl:{
@@ -36,6 +41,13 @@ class Config
   @type [String]
   ###
   allowHosts : []
+
+  ###
+  Ensure all extenal links are using auto protocal or https
+  Enum(auto|https|off)
+  ###
+  ensureExternalLinkProtocol : 'off'
+
 
   ###
   Proxy server alt mirror base url list file path

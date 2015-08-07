@@ -24,16 +24,21 @@ class Site extends Server
   Init site root directory
   ###
   @init: (root,override) ->
-    copyFolder __dirname+"/tpl",root,override
+    # copyFolder __dirname+"/tpl",root,override
+    files = ['config.js','main.js','main.html','web.config','package.json']
+    for f in files
+      copyFile __dirname + "/tpl/" + f , root + "/" + f
+
+    return
 
   ###
   Run inited site, you must do Site.init(root) first
   ###
   @run: (root,host,port) ->
-    process.argv[2] = host
-    process.argv[3] = port
+     # F**king process.env is not normal object, it will convert undefined to string 'undefined'
+    process.env.host = host || ''
+    process.env.port = port || ''
     require(path.join(root,'main.js'))
-    console.log "Site serving on #{site.runningHost}:#{site.runningPort}..."
 
 
   root: ''
@@ -49,6 +54,9 @@ class Site extends Server
                             path.join(@root,config.mirrorLinksFile)
                           else
                             config.mirrorLinksFile
+        unless fs.existsSync(mirrorLinksFile)
+          throw new Error("Config mirrorLinksFile does not exist!")
+
         mirrorLinks = fs.readFileSync(mirrorLinksFile,{encoding:"utf-8"})
         mirrorLinks = misc.trim(mirrorLinks).split(/\s+/g)
         config.mirrorLinks = mirrorLinks
@@ -87,7 +95,9 @@ class Site extends Server
   run: (host,port)->
     @runningHost = host || @config.host
     @runningPort = port || @config.port
+    console.log "Site serving on #{@runningHost}:#{@runningPort}..."
     @listen(@runningPort,@runningHost)
+
 
   ###
   Use simple cache
@@ -244,12 +254,12 @@ copyFolder = (from,to,override) ->
       copyFolder src,target,override
     else
       name = path.basename(target)
-      if !fs.existsSync(target) || (override && name!='config.js' && name!='main.js')
-        copyFile src,target
+      copyFile src,target
 
 copyFile = (src,target) ->
   # skip coffee script source code
   return if /\.coffee$|\.js\.map$/i.test src
+  return if fs.existsSync(target)
   data = fs.readFileSync src
   fs.writeFileSync target,data
 

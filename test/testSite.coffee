@@ -50,6 +50,7 @@ setupProxite = ()->
   config.allowHosts = [upstream2Host ]
   config.port = TEST_PROXY_PORT
   config.root = siteRoot
+  config.ensureExternalLinkProtocol = 'auto'
   proxite = new Site config
   proxite.useDefault()
   proxite.run()
@@ -80,7 +81,7 @@ describe 'Site Base',()->
     """
     rewritedCSS = """
     @import "/http-colon-//#{upstream2HostEscaped}/style.css";
-    @import url("http://example.com/style.css");
+    @import url("//example.com/style.css");
     """
 
     originPage = """
@@ -152,7 +153,7 @@ describe 'Site Base',()->
   it 'GET static/bundle.js',(done)->
     request(proxite._server)
     .get(proxite.config.api+'static/bundle.js')
-    .expect(fs.readFileSync(proxite.root+'/static/bundle.js','utf-8'))
+    .expect(fs.readFileSync(__dirname+'/../lib/tpl/static/bundle.js','utf-8'))
     .end done
 
 
