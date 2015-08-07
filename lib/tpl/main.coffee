@@ -31,6 +31,9 @@ argv = process.argv
 ###
  Run as `node main.js localhost 1984`
 ###
-main(argv[2],argv[3]) if require.main == module
+if require.main == module
+  main(argv[2],argv[3])
+else
+  main()
 
 

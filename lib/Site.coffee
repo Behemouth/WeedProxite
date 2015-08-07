@@ -30,10 +30,10 @@ class Site extends Server
   Run inited site, you must do Site.init(root) first
   ###
   @run: (root,host,port) ->
-    main = require(path.join(root,'main.js'))
-    site = main(host,port)
+    process.argv[2] = host
+    process.argv[3] = port
+    require(path.join(root,'main.js'))
     console.log "Site serving on #{site.runningHost}:#{site.runningPort}..."
-    return site
 
 
   root: ''
