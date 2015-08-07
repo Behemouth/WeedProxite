@@ -3,6 +3,7 @@ CACHE MANIFEST
 
 CACHE:
 <%- config.api %>static/bundle.js
+<%- config.api %>static/bundle.min.js
 <%- config.api %>static/spinner.gif
 
 

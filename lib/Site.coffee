@@ -265,16 +265,21 @@ copyFile = (src,target) ->
 
 
 calcVersion = (dir) ->
+  versions = [
+    _md5Folder dir,
+    _md5Folder __dirname
+  ]
+  return md5(versions+"")
+
+_md5Folder = (dir) ->
   versions = []
   for f in fs.readdirSync dir
     f = path.join dir,f
     if fs.statSync(f).isDirectory()
-      versions.push(calcVersion f)
+      versions.push(_md5Folder f)
     else
       versions.push(md5(fs.readFileSync(f)))
-
   return md5(versions+"")
-
 
 badRequest = (res, msg = '') ->
   res.writeHead(400)
@@ -308,8 +313,6 @@ Revert parse target url from req.url
 @param {Object} config
 @return {
   target:{
-    // 'http://subdomain.upstream.com/path/'
-    href:String,
     host:String,
     path:String,
     protocol:Enum(http:|https:)

@@ -81,7 +81,7 @@ class Client
       setTimeout writeDocument,100
 
   _fetchPage:()->
-    url = _config.api + 'raw/' + _config.proxyTarget.href;
+    url = location.href # Rely on XHR requested with header to passthrough server side rewrite
     fail = ()=>
               warn 'Current mirror is not available!\nTrying other mirrors...Please wait...'
               testOtherMirrors(@altMirrorLinks)
@@ -89,7 +89,7 @@ class Client
     return fail()  if isBlocked(@currentMirror)
     request {
       url:url
-      mime:'text/html; charset=' + (_config.charset || _config.upstreamDefaultCharset)
+      mime:'text/html; charset=' + (@config.charset || @config.upstreamDefaultCharset)
       done:(xhr)=>
         @rewriter.html = xhr.responseText
         @showPage()
@@ -98,7 +98,7 @@ class Client
 
 chooseMirror = (url)->
   chooseMirror = noop
-  location.replace(url + _config.proxyTarget.url)
+  location.replace(url + location.href.replace(/^https?:\/\/[^\/]+\//,''))
 
 testOtherMirrors= (altMirrorLinks)->
     return noAvailableMirror() if !altMirrorLinks.length

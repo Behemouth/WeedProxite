@@ -46,7 +46,7 @@ class Config
   Ensure all extenal links are using auto protocal or https
   Enum(auto|https|off)
   ###
-  ensureExternalLinkProtocol : 'off'
+  ensureExternalLinkProtocol : 'auto'
 
 
   ###
