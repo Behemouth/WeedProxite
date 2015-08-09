@@ -81,12 +81,19 @@ class Client
       setTimeout writeDocument,100
 
   _fetchPage:()->
-    url = location.href # Rely on XHR requested with header to passthrough server side rewrite
     fail = ()=>
               warn 'Current mirror is not available!\nTrying other mirrors...Please wait...'
               testOtherMirrors(@altMirrorLinks)
 
     return fail()  if isBlocked(@currentMirror)
+
+    url = location.href # Rely on XHR X-Requested-With header to passthrough server side rewrite
+    url = url.split('#')
+    url[0] = url[0].split('?')
+    url[0][1] ||= ''
+    url[0][1] += '&nocache=' + Math.random()
+    url[0] = url[0].join('?')
+    url = url.join('#')
     request {
       url:url
       mime:'text/html; charset=' + (@config.charset || @config.upstreamDefaultCharset)

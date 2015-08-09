@@ -158,8 +158,8 @@ class Middleware
     return !fail && @match.apply(this,arguments)
 
   _before:  (req,res,next,options) ->
-    accept = req.headers.accept || ''
-    return next() if @mime != '*' && !~accept.indexOf('*/*') && !@_mimeRegex.test(accept)
+    # accept = req.headers.accept || ''
+    # return next() if @mime != '*' && !~accept.indexOf('*/*') && !@_mimeRegex.test(accept)
 
     if @_mount
       # mount route compatibility for connect framework

@@ -5,6 +5,9 @@
   "scripts": {
     "start": "node main.js"
   },
+  "engines":{
+    "node":"0.12.7"
+  },
   "dependencies": {
     "WeedProxite": "git+https://github.com/Behemouth/WeedProxite.git"
   }

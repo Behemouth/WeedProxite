@@ -128,7 +128,11 @@ class Config
     @allowHosts.push(@upstreamHost)
 
     @_allowHostsMap = {}
-    for host in @allowHosts
+    @addAllowHosts(@allowHosts)
+
+
+  addAllowHosts: (hosts) ->
+    for host in hosts
       host = host.toLowerCase()
       @_allowHostsMap[host] = 1
 

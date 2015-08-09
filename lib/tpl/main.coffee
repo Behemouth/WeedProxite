@@ -18,17 +18,11 @@ port ||= process.env.port
 site = new Site(__dirname)
 
 if site.config.showJiathis
-  site.use {
-    host:'v3.jiathis.com',
-    mime:'text/html',
-    before: (req,res,next)->
-      # don't display jiathis in itself
-      req.localConfig.showJiathis = false;
-      # req.localConfig.disableRewriteHTML = true;
-      req.localConfig.enableAppcache = false;
-      next();
-  }
+  enableSocialShare = require('WeedProxite/middlewares/enableSocialShare')
+  enableSocialShare(site)
 
 
 site.useDefault()
 site.run(host,port)
+
+module.exports = site

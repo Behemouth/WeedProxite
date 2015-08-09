@@ -38,7 +38,7 @@ class Site extends Server
      # F**king process.env is not normal object, it will convert undefined to string 'undefined'
     process.env.host = host || ''
     process.env.port = port || ''
-    require(path.join(root,'main.js'))
+    return require(path.join(root,'main.js'))
 
 
   root: ''
@@ -422,7 +422,7 @@ rewriteCSS = {
 rewriteHTML = {
   mime:'text/html',
   match: (req) ->
-    return false if !~(req.headers.accept || '').indexOf('text/html')
+    # return false if !~(req.headers.accept || '').indexOf('text/html')
     return matchRewriteCond.apply(this,arguments)
 
   after: (proxyRes,res,next,proxyReq,req) ->
