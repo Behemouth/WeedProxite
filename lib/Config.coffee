@@ -132,17 +132,18 @@ class Config
 
 
   addAllowHosts: (hosts) ->
+    @allowHosts.push.apply(@allowHosts,hosts)
     for host in hosts
       host = host.toLowerCase()
       @_allowHostsMap[host] = 1
 
-  allowHost: (host) ->
+  allowHost: (host) -> # HostString -> Bool
     #([host,port] = host.split ':') if (misc.suffixOf ':80',host) || (misc.suffixOf ':443',host)
-    !!@_allowHostsMap.hasOwnProperty host
+    @_allowHostsMap.hasOwnProperty host
 
   # return true if host in baseUrlList or is upstream
   isSelfHost: (host) ->
-    !!@_selfHostsMap.hasOwnProperty host
+    @_selfHostsMap.hasOwnProperty host
 
 
 

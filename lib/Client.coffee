@@ -90,8 +90,8 @@ class Client
     url = location.href # Rely on XHR X-Requested-With header to passthrough server side rewrite
     url = url.split('#')
     url[0] = url[0].split('?')
-    url[0][1] ||= ''
-    url[0][1] += '&nocache=' + Math.random()
+    url[0][1] = if url[0][1] then url[0][1] + '&' else ''
+    url[0][1] = 'nocache=' + Math.random()
     url[0] = url[0].join('?')
     url = url.join('#')
     request {
