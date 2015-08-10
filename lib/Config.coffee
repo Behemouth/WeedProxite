@@ -43,8 +43,12 @@ class Config
   allowHosts : []
 
   ###
-  Ensure all extenal links are using auto protocal or https
+  Ensure all extenal http links are using auto protocal or https
   Enum(auto|https|off)
+
+  auto: Change non-https link to auto protocal
+  https: Force all non-https link to https
+  off: No change
   ###
   ensureExternalLinkProtocol : 'auto'
 

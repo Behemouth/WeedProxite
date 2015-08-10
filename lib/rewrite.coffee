@@ -36,7 +36,7 @@ rewrite =
     ensureProto = config.ensureExternalLinkProtocol
     if ensureProto != 'off' && /^https?:\/\//i.test(p)
       if ensureProto == 'auto'
-        p = p.replace(/^https?:\/\//i,'//')
+        p = p.replace(/^http:\/\//i,'//')
       else if ensureProto == 'https'
         p = p.replace(/^http:\/\//i,'https://')
 
