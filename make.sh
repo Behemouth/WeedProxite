@@ -25,6 +25,8 @@ case "$1" in
     ;;
   *)
     echo "Invalid action '$1'" >&2;
+    echo "Usage:";
+    echo './make.sh [watch|build|test|repl]';
     exit 1;
     ;;
 esac;

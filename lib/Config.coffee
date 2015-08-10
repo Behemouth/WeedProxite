@@ -13,6 +13,26 @@ class Config
   defaultPageTitle:'Page Title'
 
   ###
+  Append to mirror landing page body end
+  ###
+  htmlBodyAppendix: ''
+
+
+  ###
+  If wildly full text regex replace links likely allowed to relative no matter whether it is valid link
+  For example, 'example.com' is in allowHosts,
+  if set rewriteLinkWildly to true, then html:
+    <p rel="http://example.com/meta.xml">https://example.com/meta.xml</p>
+    <script>var link='http:\/\/example.com\/'</script>
+  will be rewrited to
+    <p rel="/http-colon-//example.com/meta.xml">/https-colon//example.com/meta.xml</p>
+    <script>var link='\/http-colon-\/\/example.com\/'</script>
+  ###
+  # Not implemented yet
+  # rewriteLinkWildly: false
+
+
+  ###
   Debug option, in debug mode the client will load uncompressed bundle.js
   ###
   debug:false
@@ -43,10 +63,10 @@ class Config
   allowHosts : []
 
   ###
-  Ensure all extenal http links are using auto protocal or https
+  Ensure all extenal http links are using auto protocol or https
   Enum(auto|https|off)
 
-  auto: Change non-https link to auto protocal
+  auto: Change non-https link to auto protocol
   https: Force all non-https link to https
   off: No change
   ###
@@ -71,7 +91,7 @@ class Config
   ###
   mirrorLinks: []
 
-  # Used on mirror landing page and tip
+  # Used on mirror landing page and notice
   mirrorCollectionLinks:null
 
   # Display a message to notice users this is a mirror site

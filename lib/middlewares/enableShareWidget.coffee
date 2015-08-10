@@ -1,8 +1,9 @@
 
 ###
+Enable Jiathis.com Social Share Widget
 Usage:
-enableSocialShare = require('WeedProxite/middlewares/enableSocialShare')
-enableSocialShare(site)
+enableShareWidget = require('WeedProxite/middlewares/enableShareWidget')
+enableShareWidget(site)
 ###
 
 replaceBody = require('./replaceBody')
@@ -14,7 +15,7 @@ module.exports = (site) ->
     mime:'text/html',
     before: (req,res,next)->
       # don't display jiathis in itself
-      req.localConfig.showJiathis = false;
+      req.localConfig.enableShareWidget = false;
       # req.localConfig.disableRewriteHTML = true;
       req.localConfig.enableAppcache = false;
       next();

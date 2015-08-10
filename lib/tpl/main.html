@@ -105,7 +105,8 @@
     <br class="clear" />
   </div>
 </div>
-<%- config.html_body_appendix %>
+<%- config.htmlBodyAppendix %>
+
 <% if (config.debug) { %>
   <script src="<%= config.api + 'static/bundle.js' %>"></script>
 <% } else { %>
@@ -114,9 +115,9 @@
 <script>
   var _config = <%- config.json %>;
   var client = new WeedProxite.Client();
-  if (_config.showJiathis && top == self) {
+  if (_config.enableShareWidget && top == self) {
     var jiathisCode = '<script type="text/javascript" src="/http-colon-//v3.jiathis.com/code/jiathis_r.js?move=0&btn=r4.gif" charset="utf-8"><\/script>';
-    client.rewriter.replace(/(<body\b[^>]*>)/ig,"$1"+jiathisCode);
+    client.rewriter.replace(/(<\/body>)/i,jiathisCode+"$1");
   }
 
   // Add your custom rewrite rule before client.run()

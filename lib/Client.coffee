@@ -76,9 +76,9 @@ class Client
 
 
     if document.readyState !='complete'
-      window.onload = ()-> setTimeout writeDocument,100
+      window.onload = ()-> setTimeout writeDocument,10
     else
-      setTimeout writeDocument,100
+      setTimeout writeDocument,10
 
   _fetchPage:()->
     fail = ()=>

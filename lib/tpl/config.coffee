@@ -24,11 +24,14 @@ module.exports = {
   # Enable HTML5 applicationCache
   # enableAppcache:true,
 
-  # Display Jiathis social share button
-  # showJiathis: false,
+  # Enalbe Jiathis social share widget
+  # enableShareWidget: false,
 
+  mirrorCollectionLinks: [
+    "https://github.com/greatfire/wiki",
+    "https://bitbucket.org/greatfire/wiki"
+  ],
 
-  mirrorCollectionLinks:["http://some-host.com/your-org/bookmark"],
 
   # You can specify either mirrorLinksFile or mirrorLinks
   # mirrorLinksFile: "alt_mirror_urls.txt",

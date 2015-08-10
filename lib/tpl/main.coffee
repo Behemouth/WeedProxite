@@ -17,9 +17,9 @@ port ||= process.env.port
 
 site = new Site(__dirname)
 
-if site.config.showJiathis
-  enableSocialShare = require('WeedProxite/middlewares/enableSocialShare')
-  enableSocialShare(site)
+if site.config.enableShareWidget
+  enableShareWidget = require('WeedProxite/middlewares/enableShareWidget')
+  enableShareWidget(site)
 
 
 site.useDefault()
