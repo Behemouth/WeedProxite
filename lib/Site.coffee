@@ -3,7 +3,7 @@ Config = require './Config'
 fs = require 'fs'
 path = require 'path'
 url = require 'url'
-Set = require 'Set'
+# Set = require 'Set'
 Server = require './Server'
 rewrite = require './rewrite'
 nodeStatic = require 'node-static'
@@ -11,7 +11,7 @@ md5 = require 'md5'
 ejs = require 'ejs'
 querystring = require 'querystring'
 misc = require './misc'
-LRU = require("lru-cache")
+# LRU = require("lru-cache")
 debug = require('debug')('WeedProxite:Site')
 
 
@@ -25,7 +25,10 @@ class Site extends Server
   ###
   @init: (root,override) ->
     # copyFolder __dirname+"/tpl",root,override
-    files = ['config.js','main.js','main.html','web.config','package.json']
+    files = ['config.js','main.js','main.html','web.config','package.json',
+              'static/bundle.js','static/bundle.min.js']
+    staticDir = root + '/static'
+    fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
     for f in files
       copyFile __dirname + "/tpl/" + f , root + "/" + f
 
@@ -87,9 +90,11 @@ class Site extends Server
     @use rewriteCSS
     @use rewriteHTML
 
+    ###
     if @config.useMemcache
       @_cache = LRU({max:300,maxAge:1000*60*60}) # one hour
       @useCache(@_cache)
+    ###
 
 
   run: (host,port)->
@@ -256,10 +261,10 @@ copyFolder = (from,to,override) ->
       name = path.basename(target)
       copyFile src,target
 
-copyFile = (src,target) ->
+copyFile = (src,target,override) ->
   # skip coffee script source code
-  return if /\.coffee$|\.js\.map$/i.test src
-  return if fs.existsSync(target)
+  # return if /\.coffee$|\.js\.map$/i.test src
+  return if fs.existsSync(target) and not override
   data = fs.readFileSync src
   fs.writeFileSync target,data
 

@@ -11,7 +11,6 @@ EventEmitter = (require 'events').EventEmitter
 iconv = require 'iconv-lite'
 contentType = require 'content-type'
 finalhandler = require 'finalhandler'
-Promise = require 'promise'
 bodyParser = require 'body-parser'
 
 

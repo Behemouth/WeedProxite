@@ -3,14 +3,12 @@ http = require 'http'
 WeedProxite = require '../'
 Server = WeedProxite.Server
 Site = WeedProxite.Site
-bodyParser = require 'body-parser'
-compression = require 'compression'
-getRawBody = require 'raw-body'
 program = require 'commander'
 browserify = require 'browserify'
 path = require 'path'
 watch = require 'watch'
 coffeeify = require 'coffeeify'
+exec = require("child_process").exec;
 enableDestroy = require '../lib/enableServerDestroy'
 
 LIB_ROOT = path.resolve __dirname+'/../'
@@ -23,6 +21,22 @@ misc = WeedProxite.misc
 exit =  (code) -> process.exit(code)
 
 
+rebuild = (cb,debug) ->
+
+  uglifyjs = ()->
+    exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle')
+    cb && cb()
+
+  browserify = ()->
+    if fs.existsSync('./lib/tpl/static/bundle.js') and not debug
+      console.log("File bundle.js already compiled. Exit now.")
+      return
+    exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js',uglifyjs)
+
+  if debug
+    exec('node ./node_modules/coffee-script/bin/coffee --compile .',browserify)
+  else
+    browserify()
 
 
 checkSiteRoot = (root) ->
@@ -34,9 +48,15 @@ initSite = (root,opts,cb) ->
   root ?= process.cwd()
   checkSiteRoot root
   if !opts.debug
-    Site.init root
-    cb && cb()
+    rebuild ()->
+      Site.init root
+      cb && cb()
   else
+    onfinish = ()->
+      Site.init root
+      cb && cb()
+    rebuild(onfinish,true)
+    ###
     bundleJS = fs.createWriteStream(BUNDLE_JS)
     bundleJS.on 'finish',()->
       Site.init root
@@ -44,6 +64,7 @@ initSite = (root,opts,cb) ->
       cb && cb()
 
     browserify(CLIENT_SRC).transform(coffeeify).bundle().pipe(bundleJS)
+    ###
 
 
 
@@ -54,7 +75,7 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
   if opts.debug
     monitors = []
     onChange = (f) ->
-      return if /\.coffee$/i.test(f) # skip coffee file
+      # return if /\.coffee$/i.test(f) # skip coffee file
       m.stop() for m in monitors
       console.log "Site reloading..."
       site._server.destroy()

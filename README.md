@@ -4,10 +4,10 @@ Run Mirror Proxy Site.
 ## Setup
 
 1. Clone project:
-
   ```
   git clone https://github.com/Behemouth/WeedProxite
   ```
+
 2. Install:
   ```
   # You need to install Node.js and NPM first.
@@ -34,10 +34,20 @@ Run Mirror Proxy Site.
   };
   ```
 
-5. Just run: `proxite run` or use PM2 `pm2 start main.js --name my-mirror`
+5. Execute `proxite run --debug` for debugging, run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` for production.
 
 6. Don't forget to set a daily restart Node.js server cronjob on production server if you are enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
 
 ## Config Options
 
 More config options please see `lib/Config.coffee`.
+
+## Deploy to remote server.
+
+1. Follow above steps to init site.
+
+2. Upload your site directory to remote server.
+
+3. Run `npm install --production` under your server site directory, the `--production` option will reduce dependency packages to download, but thus you can not run `proxite` command.
+
+4. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` to start server.

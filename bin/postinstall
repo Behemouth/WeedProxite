@@ -2,7 +2,9 @@
 
 exec = require("child_process").exec;
 
-exec('node ./node_modules/coffee-script/bin/coffee --compile .',browserify);
+exec('node ./node_modules/coffee-script/bin/coffee --compile .');
+
+/* Leave these jobs to dev mode `proxite init` task.
 
 function browserify() {
   exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js',uglifyjs);
@@ -11,3 +13,4 @@ function browserify() {
 function uglifyjs() {
   exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
 }
+*/
