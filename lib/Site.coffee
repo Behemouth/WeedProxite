@@ -25,10 +25,10 @@ class Site extends Server
   ###
   @init: (root,override) ->
     # copyFolder __dirname+"/tpl",root,override
-    files = ['config.js','main.js','main.html','web.config','package.json',
-              'static/bundle.js','static/bundle.min.js']
+    files = ['config.js','main.js','main.html','web.config','package.json']
     staticDir = root + '/static'
     fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
+    copyFolder __dirname + "/tpl/static/" , staticDir
     for f in files
       copyFile __dirname + "/tpl/" + f , root + "/" + f
 
