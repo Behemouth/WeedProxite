@@ -25,13 +25,13 @@
     "finalhandler":"~0.3.4",
     "body-parser":"~1.12.2",
     "iconv-lite":"~0.4.8",
-    "coffee-script":"=1.9.3"
-  },
-  "devDependencies": {
+    "coffee-script":"=1.9.3",
     "uglifyjs":"=2.4.10",
     "require.js":"=0.3.97",
     "commander":"~2.7.1",
-    "watch":"~0.16.0",
+    "watch":"~0.16.0"
+  },
+  "devDependencies": {
     "should":"~6.0.3",
     "rmdir":"~1.1.0",
     "mocha":"~2.2.5",

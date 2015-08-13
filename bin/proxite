@@ -21,6 +21,7 @@ if echo "$@"|grep -e '--debug';then
   else
     echo 'You need to run "npm install nodemon -g" by yourself first.';
     exit 1;
+  fi;
 else
   $nodejs "$LIB_ROOT/bin/cmd.js" "$@"
 fi;
