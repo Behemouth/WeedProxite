@@ -34,9 +34,9 @@ Run Mirror Proxy Site.
   };
   ```
 
-5. Execute `proxite run --debug` for debugging, run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` for production.
+5. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` for production.
 
-6. Don't forget to set a daily restart Node.js server cronjob on production server if you are enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
+6. Don't forget to set a daily restart Node.js server cronjob on production server if you enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
 
 ## Config Options
 

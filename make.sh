@@ -9,11 +9,11 @@ export NODE_PATH="$ROOT/lib/:$ROOT/node_modules/:$NODE_PATH";
 
 case "$1" in
   'watch')
-    coffee --watch --compile "$ROOT";
+    coffee --watch --compile --bare "$ROOT";
     ;;
   'build')
-    coffee --compile "$ROOT";
-    browserify -t coffeeify "$ROOT/lib/Client.coffee" -o "$ROOT/lib/tpl/static/bundle.js";
+    coffee --compile --bare "$ROOT";
+    requirejs -f "$ROOT/lib/Client.js" -o "$ROOT/lib/tpl/static/bundle.js";
     uglifyjs  ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle;
     ;;
   'test')

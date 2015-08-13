@@ -28,7 +28,7 @@ class Site extends Server
     files = ['config.js','main.js','main.html','web.config','package.json']
     staticDir = root + '/static'
     fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
-    copyFolder __dirname + "/tpl/static/" , staticDir
+    copyFolder __dirname + "/tpl/static/" , staticDir , true
     for f in files
       copyFile __dirname + "/tpl/" + f , root + "/" + f
 
@@ -259,7 +259,7 @@ copyFolder = (from,to,override) ->
       copyFolder src,target,override
     else
       name = path.basename(target)
-      copyFile src,target
+      copyFile src,target,override
 
 copyFile = (src,target,override) ->
   # skip coffee script source code

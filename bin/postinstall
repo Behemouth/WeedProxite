@@ -6,8 +6,8 @@ exec('node ./node_modules/coffee-script/bin/coffee --compile .');
 
 /* Leave these jobs to dev mode `proxite init` task.
 
-function browserify() {
-  exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js',uglifyjs);
+function requirejs() {
+  exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs);
 }
 
 function uglifyjs() {

@@ -13,9 +13,14 @@ if ! which nodejs >/dev/null 2>&1; then
   nodejs='node'
 fi;
 
-if echo "$@"|grep -P -e '\brun\b.*--debug';then
-  # Use nodemon for `run --debug`
-  nodemon --watch "$LIB_ROOT" --ignore "$LIB_ROOT/lib/tpl/" -e js "$LIB_ROOT/bin/cmd.js" "$@"
+if echo "$@"|grep -e '--debug';then
+  if which nodemon>/dev/null 2>&1; then
+
+    # Use nodemon for `run --debug`
+    nodemon --watch "$LIB_ROOT" -e js "$LIB_ROOT/bin/cmd.js" "$@"
+  else
+    echo 'You need to run "npm install nodemon -g" by yourself first.';
+    exit 1;
 else
   $nodejs "$LIB_ROOT/bin/cmd.js" "$@"
 fi;

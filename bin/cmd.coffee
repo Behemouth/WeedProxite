@@ -4,10 +4,10 @@ WeedProxite = require '../'
 Server = WeedProxite.Server
 Site = WeedProxite.Site
 program = require 'commander'
-browserify = require 'browserify'
+# browserify = require 'browserify'
 path = require 'path'
 watch = require 'watch'
-coffeeify = require 'coffeeify'
+# coffeeify = require 'coffeeify'
 exec = require("child_process").exec;
 enableDestroy = require '../lib/enableServerDestroy'
 
@@ -27,16 +27,16 @@ rebuild = (cb,debug) ->
     exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle')
     cb && cb()
 
-  browserify = ()->
+  requirejs = ()->
     if fs.existsSync('./lib/tpl/static/bundle.js') and not debug
       console.log("File bundle.js already compiled. Exit now.")
       return
-    exec('node ./node_modules/browserify/bin/cmd.js -t coffeeify ./lib/Client.coffee -o ./lib/tpl/static/bundle.js',uglifyjs)
+    exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs)
 
   if debug
-    exec('node ./node_modules/coffee-script/bin/coffee --compile .',browserify)
+    exec('node ./node_modules/coffee-script/bin/coffee --bare --compile .',requirejs)
   else
-    browserify()
+    requirejs()
 
 
 checkSiteRoot = (root) ->
