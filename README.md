@@ -48,6 +48,6 @@ More config options please see `lib/Config.coffee`.
 
 2. Upload your site directory to remote server.
 
-3. Run `npm install --production` under your server site directory, the `--production` option will reduce dependency packages to download, but thus you can not run `proxite` command.
+3. Run `npm install --production` under your server site directory, the `--production` option will reduce dependent packages to download.
 
 4. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` to start server.

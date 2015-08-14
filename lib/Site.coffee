@@ -25,12 +25,15 @@ class Site extends Server
   ###
   @init: (root,override) ->
     # copyFolder __dirname+"/tpl",root,override
-    files = ['config.js','main.js','main.html','web.config','package.json']
+    files = ['config.js','main.js','main.html']
     staticDir = root + '/static'
     fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
     copyFolder __dirname + "/tpl/static/" , staticDir , true
     for f in files
       copyFile __dirname + "/tpl/" + f , root + "/" + f
+
+    copyFile __dirname + "/tpl/web.config" , root + "/web.config" , true
+    copyFile __dirname + "/tpl/package.json" , root + "/package.json" , true
 
     return
 
@@ -388,7 +391,7 @@ matchRewriteCond = (req) ->
 secureHeaders = {
   'X-Content-Type-Options':'nosniff'
   'X-Download-Options':'noopen'
-  'X-Frame-Options': 'samorigin'
+  'X-Frame-Options': 'sameorigin'
   'X-XSS-Protection':'1; mode=block'
 }
 
