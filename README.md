@@ -3,25 +3,24 @@ Run Mirror Proxy Site.
 
 ## Setup
 
-1. Clone project:
+1. Create mirror site directory and install WeedProxite (You need to install Node.js and NPM first):
   ```
-  git clone https://github.com/Behemouth/WeedProxite
-  ```
-
-2. Install:
-  ```
-  # You need to install Node.js and NPM first.
-  cd WeedProxite
-  npm install -g
+  mkdir my-site
+  cd my-site
+  npm install --production git+https://github.com/Behemouth/WeedProxite.git
+  # If you want to install global, add '-g' option
+  # npm install --production -g git+https://github.com/Behemouth/WeedProxite.git
   ```
 
-3. Init site:
+2. Init site:
   ```
-  mkdir /var/www/my-mirror
-  cd /var/www/my-mirror
+  export PATH="$(npm bin):$PATH";
   proxite init
+  # Or use below command for Windows
+  # node ./node_modules/.bin/proxite init
   ```
-4. Configure: `vi config.js`
+
+3. Configure, edit `config.js`:
   ```
   module.exports = {
     upstream: "http://upstream-target-site.com",
@@ -34,23 +33,14 @@ Run Mirror Proxy Site.
   };
   ```
 
-5. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` for production.
+4. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` for production.
 
-6. Don't forget to set a daily restart Node.js server cronjob on production server if you enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
+5. Don't forget to set a daily restart Node.js server cronjob on production server if you enabled `httpsOptions` coz of Node.js HTTPS module memory leaks.
 
 ## Config Options
 
 More config options please see `lib/Config.coffee`.
 
-## Deploy to remote server.
-
-1. Follow above steps to init site.
-
-2. Upload your site directory to remote server.
-
-3. Run `npm install --production` under your server site directory, the `--production` option will reduce dependent packages to download.
-
-4. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` to start server.
 
 ## Use Nginx
 
