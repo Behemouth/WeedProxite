@@ -1,11 +1,11 @@
 {
   "name": "WeedProxite",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Run Mirror Proxy Site Like Weed!",
   "main": "index",
   "preferGlobal":true,
   "bin": {
-    "proxite": "bin/proxite"
+    "proxite": "bin/proxite.js"
   },
   "repository": {
     "type": "git",

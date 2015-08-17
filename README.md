@@ -51,3 +51,22 @@ More config options please see `lib/Config.coffee`.
 3. Run `npm install --production` under your server site directory, the `--production` option will reduce dependent packages to download.
 
 4. Run `node main.js` or use [PM2](https://www.npmjs.com/package/pm2) `pm2 start main.js --name my-mirror` to start server.
+
+## Use Nginx
+
+1. Please refer to this turtorial to install Nginx:  https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-as-a-reverse-proxy-for-apache
+
+2. Run mirror site: `node main.js`
+
+3. Proxy pass to Node.js app server, for example your bind host is lo and port is 1984 :
+    ```
+    location / {
+      proxy_set_header X-Real-IP  $remote_addr;
+      proxy_set_header X-Forwarded-For $remote_addr;
+      proxy_set_header Host $host;
+      # ....Other configurations
+      proxy_pass http://127.0.0.1:1984;
+    }
+    ```
+
+

@@ -1,3 +1,4 @@
+#!/usr/bin/env coffee
 fs = require 'fs'
 http = require 'http'
 WeedProxite = require '../'
@@ -34,7 +35,7 @@ rebuild = (cb,debug) ->
     exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs)
 
   if debug
-    exec('node ./node_modules/coffee-script/bin/coffee --bare --compile .',requirejs)
+    exec('node ./node_modules/coffee-script/bin/coffee --bare --no-header --compile .',requirejs)
   else
     requirejs()
 

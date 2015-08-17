@@ -15,7 +15,6 @@ fi;
 
 if echo "$@"|grep -e '--debug';then
   if which nodemon>/dev/null 2>&1; then
-
     # Use nodemon for `run --debug`
     nodemon --watch "$LIB_ROOT" -e js "$LIB_ROOT/bin/cmd.js" "$@"
   else

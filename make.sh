@@ -2,17 +2,17 @@
 # Util develop script
 ROOT=`dirname $(realpath "$0")`;
 
-# This trivial job need to be done by yourself!
+# This trivial job need to be done by yourself
 export PATH="$(npm bin):$PATH";
 export NODE_PATH="$ROOT/lib/:$ROOT/node_modules/:$NODE_PATH";
 
 
 case "$1" in
   'watch')
-    coffee --watch --compile --bare "$ROOT";
+    coffee --watch --compile --bare --no-header "$ROOT";
     ;;
   'build')
-    coffee --compile --bare "$ROOT";
+    coffee --compile --bare --no-header "$ROOT";
     requirejs -f "$ROOT/lib/Client.js" -o "$ROOT/lib/tpl/static/bundle.js";
     uglifyjs  ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle;
     ;;
