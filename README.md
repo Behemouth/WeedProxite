@@ -60,3 +60,6 @@ More config options please see `lib/Config.coffee`.
     ```
 
 
+## Example sites:
+
+https://github.com/Behemouth/sites
