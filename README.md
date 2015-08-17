@@ -16,8 +16,8 @@ Run Mirror Proxy Site.
   ```
   export PATH="$(npm bin):$PATH";
   proxite init
-  # Or use below command for Windows
-  # node ./node_modules/.bin/proxite init
+  # Or use relative path
+  # ./node_modules/.bin/proxite init
   ```
 
 3. Configure, edit `config.js`:

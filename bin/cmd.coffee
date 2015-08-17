@@ -9,7 +9,7 @@ program = require 'commander'
 path = require 'path'
 watch = require 'watch'
 # coffeeify = require 'coffeeify'
-exec = require("child_process").exec;
+# exec = require("child_process").exec;
 enableDestroy = require '../lib/enableServerDestroy'
 
 LIB_ROOT = path.resolve __dirname+'/../'
@@ -20,24 +20,6 @@ misc = WeedProxite.misc
 
 
 exit =  (code) -> process.exit(code)
-
-
-rebuild = (cb) ->
-
-  uglifyjs = ()->
-    exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle')
-    cb && cb()
-
-  requirejs = ()->
-    ###
-    if fs.existsSync('./lib/tpl/static/bundle.js')
-      console.log("File bundle.js already compiled. Exit now.")
-      return
-    ###
-    exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs)
-
-
-  exec('node ./node_modules/coffee-script/bin/coffee --bare --no-header --compile .',requirejs)
 
 
 checkSiteRoot = (root) ->
@@ -102,7 +84,7 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 program.command('init [root]')
        .description('Init site, root param is the site root directory')
        # .option('--override','Override exist files except config.js main.js and main.html')
-       .option('--debug','Generate fresh debug version bundle.js, you need to set debug=true in config.js to use it')
+       # .option('--debug','Generate fresh debug version bundle.js, you need to set debug=true in config.js to use it')
        .action(initSite)
 
 
@@ -114,7 +96,7 @@ program.command('run [root]')
        .action(runSite)
 
 program.command('help')
-       .description('Display help')
+       .description('Show help')
        .action(() -> program.outputHelp())
 
 program.parse(process.argv);

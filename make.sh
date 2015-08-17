@@ -13,7 +13,7 @@ case "$1" in
     ;;
   'build')
     coffee --compile --bare --no-header "$ROOT";
-    requirejs -f "$ROOT/lib/Client.js" -o "$ROOT/lib/tpl/static/bundle.js";
+    light-require-compile.js "$ROOT/lib/Client.js" "$ROOT/lib/tpl/static/bundle.js";
     uglifyjs  ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle;
     ;;
   'test')

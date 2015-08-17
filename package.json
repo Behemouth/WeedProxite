@@ -27,7 +27,7 @@
     "iconv-lite":"~0.4.8",
     "coffee-script":"=1.9.3",
     "uglifyjs":"=2.4.10",
-    "require.js":"=0.3.97",
+    "light-require-compile":"git+https://github.com/Behemouth/light-require-compile.git",
     "commander":"~2.7.1",
     "watch":"~0.16.0"
   },
