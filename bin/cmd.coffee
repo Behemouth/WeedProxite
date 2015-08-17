@@ -22,22 +22,22 @@ misc = WeedProxite.misc
 exit =  (code) -> process.exit(code)
 
 
-rebuild = (cb,debug) ->
+rebuild = (cb) ->
 
   uglifyjs = ()->
     exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle')
     cb && cb()
 
   requirejs = ()->
-    if fs.existsSync('./lib/tpl/static/bundle.js') and not debug
+    ###
+    if fs.existsSync('./lib/tpl/static/bundle.js')
       console.log("File bundle.js already compiled. Exit now.")
       return
+    ###
     exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs)
 
-  if debug
-    exec('node ./node_modules/coffee-script/bin/coffee --bare --no-header --compile .',requirejs)
-  else
-    requirejs()
+
+  exec('node ./node_modules/coffee-script/bin/coffee --bare --no-header --compile .',requirejs)
 
 
 checkSiteRoot = (root) ->
@@ -49,9 +49,8 @@ initSite = (root,opts,cb) ->
   root ?= process.cwd()
   checkSiteRoot root
   if !opts.debug
-    rebuild ()->
-      Site.init root
-      cb && cb()
+    Site.init root
+    cb && cb()
   else
     onfinish = ()->
       Site.init root

@@ -2,9 +2,7 @@
 
 exec = require("child_process").exec;
 
-exec('node ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .');
-
-/* Leave these jobs to `proxite init` task.
+exec('node ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .', requirejs);
 
 function requirejs() {
   exec('node ./node_modules/require.js/bin/index.js -f ./lib/Client.js -o ./lib/tpl/static/bundle.js',uglifyjs);
@@ -13,4 +11,3 @@ function requirejs() {
 function uglifyjs() {
   exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
 }
-*/
