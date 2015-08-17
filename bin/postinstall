@@ -2,12 +2,22 @@
 
 exec = require("child_process").exec;
 
-exec('node ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .', requirejs);
+exec('node ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .', require_compile);
 
-function requirejs() {
-  exec('node ./node_modules/light-require-compile/bin/light-require-compile.js ./lib/Client.js ./lib/tpl/static/bundle.js',uglifyjs);
+function require_compile(err) {
+  if (err) {
+    console.error(err)
+    process.exit(2);
+  } else {
+    exec('node ./node_modules/light-require-compile/bin/light-require-compile.js ./lib/Client.js ./lib/tpl/static/bundle.js',uglifyjs);
+  }
 }
 
-function uglifyjs() {
-  exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
+function uglifyjs(err) {
+  if (err) {
+    console.log(err);
+    process.exit(3);
+  } else {
+    exec('node ./node_modules/uglifyjs/bin/uglifyjs ./lib/tpl/static/bundle.js -o ./lib/tpl/static/bundle.min.js --compress --mangle');
+  }
 }
