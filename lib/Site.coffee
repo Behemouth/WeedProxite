@@ -439,8 +439,8 @@ rewriteHTML = {
     ctrlType = config.location.ctrlType
     if proxyRes.statusCode != 200 || req.method != 'GET' || ctrlType == 'iframe'
       config.enableAppcache = false
+      config.showMirrorNotice = false
 
-    config.showMirrorNotice = false if req.method != 'GET'
     headers = proxyRes.headers
     #delete headers['expires'] # for firefox
     #delete headers['last-modified']
