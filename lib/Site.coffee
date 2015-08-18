@@ -26,10 +26,10 @@ class Site extends Server
   @init: (root,override) ->
     # copyFolder __dirname+"/tpl",root,override
     files = ['config.js','main.js','main.html']
-    staticDir = root + '/static'
+    # staticDir = root + '/static'
     # fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
-    if fs.existsSync(staticDir)
-      copyFolder __dirname + "/tpl/static/" , staticDir , true
+    # if fs.existsSync(staticDir)
+    #   copyFolder __dirname + "/tpl/static/" , staticDir , true
     for f in files
       copyFile __dirname + "/tpl/" + f , root + "/" + f
 
@@ -79,10 +79,11 @@ class Site extends Server
     @config.manifest = @config.api + 'manifest.appcache'
     @config.version = calcVersion @root
 
-    if fs.existsSync(path.join(@root,'static'))
-      @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
-    else
-      @_staticServer = new nodeStatic.Server(path.join(__dirname,'tpl','static'),{serverInfo:'Static'})
+    # if fs.existsSync(path.join(@root,'static'))
+    #   @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
+    # else
+    #  @_staticServer = new nodeStatic.Server(path.join(__dirname,'tpl','static'),{serverInfo:'Static'})
+    @_staticServer = new nodeStatic.Server(path.join(__dirname,'tpl','static'),{serverInfo:'NWS'})
 
     @_initTemplates()
     @_prepare()
@@ -241,17 +242,15 @@ class Site extends Server
     }
 
   _initTemplates: () ->
-    m = {
-      manifest: 'manifest.appcache',
-      main: 'main.html'
-    }
     tpl = {}
-    for k,v of m
-      if fs.existsSync(path.join(@root,v))
-        tpl[k] = ejs.compile(fs.readFileSync(path.join(@root,v),{encoding:'utf-8'}))
-      else
-        tpl[k] = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',v),{encoding:'utf-8'}))
+    mainTpl = 'main.html'
+    if fs.existsSync(path.join(@root,mainTpl))
+      tpl.main = ejs.compile(fs.readFileSync(path.join(@root,mainTpl),{encoding:'utf-8'}))
+    else
+      tpl.main = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',mainTpl),{encoding:'utf-8'}))
 
+    manifestTpl = 'manifest.appcache'
+    tpl.manifest = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',manifestTpl),{encoding:'utf-8'}))
     @config._tpl = tpl
 
 copyFolder = (from,to,override) ->

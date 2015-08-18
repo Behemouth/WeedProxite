@@ -1,6 +1,6 @@
 {
   "name": "WeedProxite",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Run Mirror Proxy Site Like Weed!",
   "main": "index",
   "preferGlobal":true,
