@@ -13,6 +13,9 @@ querystring = require 'querystring'
 misc = require './misc'
 # LRU = require("lru-cache")
 debug = require('debug')('WeedProxite:Site')
+bodyParser = require 'body-parser'
+http = require 'http'
+https = require 'https'
 
 
 class Site extends Server
@@ -57,19 +60,18 @@ class Site extends Server
       @root = p
       config = require(path.join(p,'config.js'))
       if config.mirrorLinksFile
-        mirrorLinksFile = if config.mirrorLinksFile[0]!='/'
-                            path.join(@root,config.mirrorLinksFile)
-                          else
-                            config.mirrorLinksFile
-        unless fs.existsSync(mirrorLinksFile)
-          throw new Error("Config mirrorLinksFile does not exist!")
-
-        mirrorLinks = fs.readFileSync(mirrorLinksFile,{encoding:"utf-8"})
-        mirrorLinks = misc.trim(mirrorLinks).split(/\s+/g)
-        config.mirrorLinks = mirrorLinks
+        file = config.mirrorLinksFile
+        if !~file.indexOf('//') && file[0]!='/'
+          file = path.join(@root,config.mirrorLinksFile)
+        config.mirrorLinksFile = file
 
       @config = new Config(config)
       @config.root = @root
+      @updateMirrorLinks()
+      if @config.mirrorLinksFileRefresh
+        _refresh = ()=> @updateMirrorLinks()
+        t = @config.mirrorLinksFileRefresh * 1000 * 60
+        @_mirrorLinksFileRefreshTimer = setInterval _refresh, t
     else
       @config = new Config(p)
       @root = @config.root
@@ -89,6 +91,36 @@ class Site extends Server
     @_prepare()
 
     #@config._outputCtrlQueryRe = new RegExp('\\b'+@config.outputCtrlParamName+'=[^=&?#]*','g')
+
+  close: (cb)->
+    clearInterval @_mirrorLinksFileRefreshTimer
+    super cb
+
+  updateMirrorLinks: ()->
+    config = @config
+    file = config.mirrorLinksFile
+    setLinks = (data)->
+      links = misc.trim(data).split(/\s+/g)
+      config.setSelfLinks(links)
+    if !~file.indexOf '//'
+      readFile = () -> fs.readFile file, {encoding:"utf-8"}, onRead
+      onRead = (err,data)->
+        throw err if err
+        setLinks(data)
+
+      checkExists = (exists)->
+                  if not exists
+                    throw new Error("Config mirrorLinksFile does not exist!")
+                  readFile()
+      fs.exists file,checkExists
+    else
+      [scheme,_,_] = misc.parseUrl file
+      sender = if scheme == 'https' then https else http
+      any = () -> true
+      onResponse = (res)->
+        next = ()-> setLinks(res.body)
+        bodyParser.text({type:any})(res,null,next)
+      sender.get file,onResponse
 
   useDefault: () ->
     @use rewriteCrossDomainXML

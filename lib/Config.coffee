@@ -74,12 +74,30 @@ class Config
 
 
   ###
-  Proxy server alt mirror base url list file path
-  each url seperated by newline, url must ends with '/'
+  Proxy server alt mirror base url list file path or remote url
+  each url seperated by newline
 
-  mirrorLinksFile: "alt_mirror_urls.txt"
+  mirrorLinksFile: "alt_base_urls.txt"
+
+  Same as
+  mirrorLinks = misc.trim(fs.readFileSync("./alt_base_urls.txt",{encoding:"utf-8"})).split(/\s+/g)
+
+  Format:
+    https://one.mirror-domain.com/
+    https://two.mirror-domain.com/
+
+  Or plain domains,default https:
+    one.mirror-domain.com
+    two.mirror-domain.com
   ###
   mirrorLinksFile: ""
+
+  ###
+  mirrorLinksFile Interval refresh in Minutes
+  Default update per 30 minutes,set to zero to disable it
+  Only make sense when set mirrorLinksFile option
+  ###
+  mirrorLinksFileRefresh: 30
 
   ###
   You can specify either `mirrorLinksFile` or `mirrorLinks`,but can not set both of them
@@ -87,7 +105,8 @@ class Config
     "http: //proxite.lo.cal/",
     "http: //localhost:1984/"
   ]
-  mirrorLinks = misc.trim(fs.readFileSync("./alt_mirror_urls.txt",{encoding:"utf-8"})).split(/\s+/g)
+
+  Or plain domains:["one.mirror-domain.com","two.mirror-domain.com"]
   ###
   mirrorLinks: []
 
@@ -139,13 +158,9 @@ class Config
       if key[0] != '_' && typeof this[key]!='function'
         this[key] = value
 
+    @setSelfLinks(@mirrorLinks)
+
     @upstream = @upstream.slice(0,-1) if @upstream.slice(-1) =='/'
-
-    @_selfHosts = (misc.parseUrl(url)[1] for url in @mirrorLinks)
-    @_selfHostsMap = {}
-    for host in @_selfHosts
-      @_selfHostsMap[host.toLowerCase()]=1
-
     [scheme,host] = misc.parseUrl(@upstream)
     @upstreamHost = host
     @upstreamScheme = scheme
@@ -153,6 +168,17 @@ class Config
 
     @_allowHostsMap = {}
     @addAllowHosts(@allowHosts)
+
+  setSelfLinks: (links) ->
+    return unless links.length
+    @mirrorLinks = for url in links
+                      url = if !~url.indexOf('//') then 'https://'+url+'/' else url
+                      if url.slice(-1)!='/' then url+'/' else url
+
+    _selfHosts = (misc.parseUrl(url)[1] for url in links)
+    @_selfHostsMap = {}
+    for host in _selfHosts
+      @_selfHostsMap[host.toLowerCase()]=1
 
 
   addAllowHosts: (hosts) ->

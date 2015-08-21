@@ -317,8 +317,9 @@ _withTextBody = (opts,cb) ->
 
   return cb(null,@body) if typeof @body == 'string'
   tryCharset = (@charset || opts?.defaultCharset || 'utf-8').toLowerCase()
+  any = () -> true
   options = {
-    type:'*/*'
+    type:any
     limit: opts?.limit || '2mb'
   }
   ct = @headers['content-type']
