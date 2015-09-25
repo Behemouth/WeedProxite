@@ -1,19 +1,16 @@
+# More config options please see `WeedProxite/lib/Config.coffee`
 
-
-###
-More config options please see `WeedProxite/lib/Config.coffee`
-###
 module.exports = {
-  upstream: "http://example.com",
-  # upstreamDefaultCharset: "UTF-8",
-  # defaultPageTitle:'Your Site Page Title',
-  port: process.env.port || '1984',
-  host: process.env.host || '127.0.0.1',
-  allowHosts:[
-    # 'sub.example.com'
+  "upstream": "http://example.com",
+  # "upstreamDefaultCharset": "UTF-8",
+  # "defaultPageTitle":"Your Site Page Title",
+  "port": "1984",
+  "host": "127.0.0.1",
+  "allowHosts":[
+    # "sub.example.com"
   ],
 
-  ensureExternalLinkProtocol : 'auto',
+  "ensureExternalLinkProtocol": "auto",
 
   # Display a message to notice users this is a mirror site
   # showMirrorNotice: true,
@@ -27,14 +24,14 @@ module.exports = {
   # Enalbe Jiathis social share widget
   # enableShareWidget: false,
 
-  mirrorCollectionLinks: [
+  "mirrorCollectionLinks": [
     "https://github.com/greatfire/wiki",
     "https://bitbucket.org/greatfire/wiki"
   ],
 
 
   # You can specify either mirrorLinksFile or mirrorLinks
-  # mirrorLinksFile: "alt_mirror_urls.txt",
+  # "mirrorLinksFile": "alt_mirror_urls.txt",
   # You mirror site's links
-  mirrorLinks: ["http://proxite.lo.cal:1984/"]
+  "mirrorLinks": ["http://proxite.lo.cal:1984/"]
 }

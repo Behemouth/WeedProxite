@@ -89,8 +89,18 @@ class Config
   Or plain domains,default https:
     one.mirror-domain.com
     two.mirror-domain.com
+
+  mirrorLinksFile could be also a remote url which obeys Centrice GET API:
+  See: https://github.com/Behemouth/centrice
+
+  For example: https://centrice-domain-server-ip/domains/mirror-name/
   ###
   mirrorLinksFile: ""
+
+  # Rank visitors by their visit frequency, this options only works with Centrice API mirrorLinksFile
+  rankVisitors: false
+  # How many page views cause rank upgrade
+  rankMissionLevel: 10
 
   ###
   mirrorLinksFile Interval refresh in Minutes
@@ -147,7 +157,8 @@ class Config
   port: 1984
 
   # Use https server,pass these options to https.createServer(opts)
-  httpsOptions: null
+  # @deprecated
+  # httpsOptions: null
 
   ###
   @param {Object} config
@@ -171,15 +182,15 @@ class Config
 
   setSelfLinks: (links) ->
     return unless links.length
-    @mirrorLinks = for url in links
-                      url = if !~url.indexOf('//') then 'https://'+url+'/' else url
-                      if url.slice(-1)!='/' then url+'/' else url
+    links = _normalizeLinks(links)
 
     _selfHosts = (misc.parseUrl(url)[1] for url in links)
     @_selfHostsMap = {}
     for host in _selfHosts
       @_selfHostsMap[host.toLowerCase()]=1
 
+  setPublicLinks: (links) ->
+    @mirrorLinks = _normalizeLinks(links)
 
   addAllowHosts: (hosts) ->
     @allowHosts.push.apply(@allowHosts,hosts)
@@ -202,7 +213,10 @@ class Config
   isProxyAPI: (urlpath) -> misc.prefixOf @api,urlpath
 
   toClient: () ->
-    ignore = {mirrorLinksFile:1,host:1,port:1,root:1,httpsOptions:1}
+    ignore = {
+      host:1,port:1,root:1,httpsOptions:1,
+      mirrorLinksFile:1,rankMissionLevel:1
+    }
     a = {}
     for k,v of this
       if !ignore[k] && k[0]!='_' && typeof this[k]!='function'
@@ -210,7 +224,10 @@ class Config
     return a
 
 
-
+_normalizeLinks = (links) ->
+  for url in links
+    url = if !~url.indexOf('//') then 'https://'+url+'/' else url
+    if url.slice(-1)!='/' then url+'/' else url
 
 
 module.exports = Config

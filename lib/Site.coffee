@@ -16,6 +16,121 @@ debug = require('debug')('WeedProxite:Site')
 bodyParser = require 'body-parser'
 http = require 'http'
 https = require 'https'
+Cookies = require 'cookies'
+crypto = require 'crypto'
+CRYPTO_ALGORITHM = 'AES-256-CTR'
+
+# Special rank to skip
+RESERVED_RANK = 9
+
+_USER_RANK_COOKIE_NAME = 'weedproxite_urc'
+
+
+encrypt = (text,password) ->
+  cipher = crypto.createCipher(CRYPTO_ALGORITHM,password)
+  crypted = cipher.update(text,'utf8','hex')
+  crypted += cipher.final('hex')
+  return crypted
+
+decrypt = (text,password) ->
+  try
+    decipher = crypto.createDecipher(CRYPTO_ALGORITHM,password)
+    dec = decipher.update(text,'hex','utf8')
+    dec += decipher.final('utf8')
+    return dec
+  catch
+    return ""
+
+
+
+ajustUserRank = (req,res) ->
+  config = req.localConfig
+  password = config._cryptoPassword
+  maxRank = config._domainsMap.up.maxRank
+  rankLevel = config.rankMissionLevel
+
+  value = req.cookies.get(_USER_RANK_COOKIE_NAME) + ""
+  value = decrypt(value,password) + ""
+  value = +value.slice(4) # 4 random padding
+  value = +value || 0
+  value += 1
+  rank = (value / rankLevel) | 0
+
+  (rank = maxRank) if rank > maxRank
+  if rank == 0
+    config.setPublicLinks(config._zeroRankLinks)
+  else
+    config.setPublicLinks(config._domainsMap.up[rank])
+  config.guestRank = rank
+
+  # console.log "Value:"+value+" Rank:"+rank
+
+  value = encrypt((Math.random()*100000).toString(32).slice(0,4)+value,password)
+  expires = new Date
+  expires.setDate(expires.getDate()+3) # three day expires
+  res.cookies.set(_USER_RANK_COOKIE_NAME,value,{expires:expires,path:"/"})
+
+
+updateMirrorLinks = (config)->
+  file = config.mirrorLinksFile
+  setLinks = (data)->
+    links = misc.trim(data).split(/\s+/g)
+    config._zeroRankLinks = links
+    config.setSelfLinks(links)
+    config.setPublicLinks(links)
+
+  if !~file.indexOf '//'
+    readFile = () -> fs.readFile file, {encoding:"utf-8"}, onRead
+    onRead = (err,data)->
+      throw err if err
+      setLinks(data)
+
+    checkExists = (exists)->
+                if not exists
+                  throw new Error("Config mirrorLinksFile does not exist!")
+                readFile()
+    fs.exists file,checkExists
+  else # Use Centrice API
+    [scheme,_,_] = misc.parseUrl file
+    sender = if scheme == 'https' then https else http
+    any = () -> true
+    groupByRank = (domains) ->
+      map = {}
+      maxRank = 0
+      for d in domains
+        continue if d.rank == RESERVED_RANK
+        (maxRank = d.rank) if d.rank > maxRank
+        (map[d.rank] = map[d.rank] || []).push d.domain
+
+      map.maxRank = maxRank
+      return map
+
+    setDomainsMap = (domains) ->
+      upDomains = domains.filter (p)-> not p.blocked
+      downDomains = domains.filter (p)-> p.blocked
+      config._domainsMap = {
+        up: groupByRank upDomains
+        down: groupByRank downDomains
+      }
+
+    onPublicLinksResponse = (res)->
+      next = ()->
+        setLinks(res.body)
+
+      bodyParser.text({type:any})(res,null,next)
+
+
+    onDetailResponse = (res)->
+      next = ()->
+        setDomainsMap(res.body)
+
+      bodyParser.json({type:any})(res,null,next)
+
+    sender.get file+'?rank=0&status=up',onPublicLinksResponse
+    sender.get file+'?rank=all&status=all&format=detail',onDetailResponse
+
+
+
 
 
 class Site extends Server
@@ -39,6 +154,7 @@ class Site extends Server
     copyFile __dirname + "/tpl/web.config" , root + "/web.config", true
     copyFile __dirname + "/tpl/package.json" , root + "/package.json", true
 
+
     return
 
   ###
@@ -58,7 +174,23 @@ class Site extends Server
   constructor: (p) ->
     if typeof p == 'string'
       @root = p
-      config = require(path.join(p,'config.js'))
+      configJSFile = path.join(p,'config.js')
+      configJSONFile = path.join(p,'config.json')
+      config = {}
+      if fs.existsSync(configJSFile)
+        config = require(configJSFile)
+
+      if fs.existsSync(configJSONFile)
+        configJSONContent = fs.readFileSync(configJSONFile,'utf-8')
+        try
+          configJSON = eval('('+configJSONContent+')')
+        catch e
+          console.error("Config JSON file \"#{configJSONFile}\"  is not valid:\n"+e)
+          throw e
+        for key of configJSON
+          config[key] = configJSON[key]
+
+
       if config.mirrorLinksFile
         file = config.mirrorLinksFile
         if !~file.indexOf('//') && file[0]!='/'
@@ -67,9 +199,9 @@ class Site extends Server
 
       @config = new Config(config)
       @config.root = @root
-      @updateMirrorLinks()
+      updateMirrorLinks(@config)
       if @config.mirrorLinksFileRefresh
-        _refresh = ()=> @updateMirrorLinks()
+        _refresh = ()=> updateMirrorLinks(@config)
         t = @config.mirrorLinksFileRefresh * 1000 * 60
         @_mirrorLinksFileRefreshTimer = setInterval _refresh, t
     else
@@ -81,6 +213,13 @@ class Site extends Server
     @config.manifest = @config.api + 'manifest.appcache'
     @config.version = calcVersion @root
 
+    if @config.rankVisitors
+      if !~@config.mirrorLinksFile.indexOf('//')
+        throw new Error("Config#rankVisitors only works when set mirrorLinksFile to Centrice API")
+
+      @config._cryptoPassword = Math.random().toString(36) + (+new Date) + Math.random().toString(36)
+
+
     # if fs.existsSync(path.join(@root,'static'))
     #   @_staticServer = new nodeStatic.Server(path.join(@root,'static'),{serverInfo:'Static'})
     # else
@@ -88,6 +227,7 @@ class Site extends Server
     @_staticServer = new nodeStatic.Server(path.join(__dirname,'tpl','static'),{serverInfo:'NWS'})
 
     @_initTemplates()
+    @use Cookies.express()
     @_prepare()
 
     #@config._outputCtrlQueryRe = new RegExp('\\b'+@config.outputCtrlParamName+'=[^=&?#]*','g')
@@ -95,32 +235,6 @@ class Site extends Server
   close: (cb)->
     clearInterval @_mirrorLinksFileRefreshTimer
     super cb
-
-  updateMirrorLinks: ()->
-    config = @config
-    file = config.mirrorLinksFile
-    setLinks = (data)->
-      links = misc.trim(data).split(/\s+/g)
-      config.setSelfLinks(links)
-    if !~file.indexOf '//'
-      readFile = () -> fs.readFile file, {encoding:"utf-8"}, onRead
-      onRead = (err,data)->
-        throw err if err
-        setLinks(data)
-
-      checkExists = (exists)->
-                  if not exists
-                    throw new Error("Config mirrorLinksFile does not exist!")
-                  readFile()
-      fs.exists file,checkExists
-    else
-      [scheme,_,_] = misc.parseUrl file
-      sender = if scheme == 'https' then https else http
-      any = () -> true
-      onResponse = (res)->
-        next = ()-> setLinks(res.body)
-        bodyParser.text({type:any})(res,null,next)
-      sender.get file,onResponse
 
   useDefault: () ->
     @use rewriteCrossDomainXML
@@ -135,8 +249,8 @@ class Site extends Server
 
 
   run: (host,port)->
-    @runningHost = host || @config.host
-    @runningPort = port || @config.port
+    @runningHost = host || @config.host || process.env.host
+    @runningPort = port || @config.port || process.env.port
     console.log "Site serving on #{@runningHost}:#{@runningPort}..."
     @listen(@runningPort,@runningHost)
 
@@ -256,6 +370,7 @@ class Site extends Server
             opt.headers[h] = revertUrl(_path,config)
 
         delete opt.headers[h] for h in reqIgnoreHeaders  #ignore headers
+
         next()
 
       ###
@@ -478,6 +593,8 @@ rewriteHTML = {
     #delete headers['last-modified']
     headers['cache-control']='' # use default cache control
     headers['pragma']='' if headers['pragma']=='no-cache'
+
+    ajustUserRank(req,res) if config.rankVisitors
 
     cb = (err,body) ->
       return next(err) if err
