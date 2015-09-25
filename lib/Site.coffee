@@ -121,8 +121,12 @@ updateMirrorLinks = (config)->
 
 
     onDetailResponse = (res)->
-      next = ()->
-        setDomainsMap(res.body)
+      next = (err)->
+        if err
+          config.rankVisitors = false
+          console.error "Fetch all domains failed:"+err.message
+        else
+          setDomainsMap(res.body)
 
       bodyParser.json({type:any})(res,null,next)
 
