@@ -100,7 +100,7 @@ class Config
   # Rank visitors by their visit frequency, this options only works with Centrice API mirrorLinksFile
   rankVisitors: false
   # How many page views cause rank upgrade
-  rankMissionLevel: 10
+  rankMissionLevel: 64
 
   ###
   mirrorLinksFile Interval refresh in Minutes
@@ -133,6 +133,9 @@ class Config
   enableAppcache:true
 
   useMemcache:false
+
+  # Set you google analytics Tracking ID
+  # gaTrackingID: ""
 
 
   ###
@@ -215,7 +218,9 @@ class Config
   toClient: () ->
     ignore = {
       host:1,port:1,root:1,httpsOptions:1,
-      mirrorLinksFile:1,rankMissionLevel:1
+      mirrorLinksFile:1,rankMissionLevel:1,
+      mirrorLinksFileRefresh:1,
+      useMemcache:1
     }
     a = {}
     for k,v of this

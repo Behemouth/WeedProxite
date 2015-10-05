@@ -9,7 +9,7 @@ program = require 'commander'
 path = require 'path'
 watch = require 'watch'
 # coffeeify = require 'coffeeify'
-# exec = require("child_process").exec;
+exec = require("child_process").exec;
 enableDestroy = require '../lib/enableServerDestroy'
 
 LIB_ROOT = path.resolve __dirname+'/../'
@@ -17,6 +17,26 @@ CLIENT_SRC = LIB_ROOT + '/lib/Client.coffee'
 BUNDLE_JS = LIB_ROOT + '/lib/tpl/static/bundle.js'
 misc = WeedProxite.misc
 
+
+
+
+
+rebuild = (cb)->
+  process.chdir __dirname + '/../'
+  require_compile = ()->
+    exec(process.execPath + ' ./node_modules/light-require-compile/bin/light-require-compile.js ./lib/Client.js ./lib/tpl/static/bundle.js',done)
+
+  # exec(process.execPath + ' ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .', require_compile)
+
+  done = (err)->
+    if (err)
+      console.error(err)
+      process.exit(2)
+    else
+      process.chdir __dirname
+      cb()
+
+  require_compile()
 
 
 exit =  (code) -> process.exit(code)
@@ -37,7 +57,7 @@ initSite = (root,opts,cb) ->
     onfinish = ()->
       Site.init root
       cb && cb()
-    rebuild(onfinish,true)
+    rebuild(onfinish)
     ###
     bundleJS = fs.createWriteStream(BUNDLE_JS)
     bundleJS.on 'finish',()->
@@ -53,8 +73,19 @@ initSite = (root,opts,cb) ->
 runSite = (root,opts) -> # Used nodemon to auto reload server
   root ?= process.cwd()
   checkSiteRoot root
-  site = null
+
+  startSite = ()->
+    process.env.WEED_PROXITE_DEBUG = true
+    Site.run root,opts.host,opts.port
+
   if opts.debug
+    rebuild(startSite)
+  else
+    startSite()
+
+
+  ###
+  if false && opts.debug
     monitors = []
     onChange = (f) ->
       # return if /\.coffee$/i.test(f) # skip coffee file
@@ -71,10 +102,11 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 
       watch.createMonitor root,bindMonitor
       watch.createMonitor LIB_ROOT+'/lib/tpl/',bindMonitor
-      site = Site.run root,opts.host,opts.port
-      enableDestroy site._server
+      Site.run root,opts.host,opts.port
+      # enableDestroy site._server
   else
-    site = Site.run root,opts.host,opts.port
+    Site.run root,opts.host,opts.port
+  ###
 
 
 
@@ -84,13 +116,13 @@ runSite = (root,opts) -> # Used nodemon to auto reload server
 program.command('init [root]')
        .description('Init site, root param is the site root directory')
        # .option('--override','Override exist files except config.js main.js and main.html')
-       # .option('--debug','Generate fresh debug version bundle.js, you need to set debug=true in config.js to use it')
+       .option('--debug','Generate fresh debug version bundle.js, you need to set debug=true in config.js by yourself')
        .action(initSite)
 
 
 program.command('run [root]')
        .description('Run site')
-       .option('--debug','Server will automatically reload in debug mode')
+       .option('--debug','Watch changes so server will automatically reload on debug')
        .option('--host [host]','Bind host, default is 127.0.0.1')
        .option('--port [port]','Bind port, default is 1984')
        .action(runSite)

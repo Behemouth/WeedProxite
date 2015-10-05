@@ -17,7 +17,7 @@ LS = window.localStorage;
 LS = {getItem:noop,setItem:noop,removeItem:noop,clear:noop} if !LS;
 
 if !window.console
-  window.console = {log:noop}
+  window.console = {log:noop,info:noop}
 
 isInCrossDomainFrame = ()->
   try
@@ -33,6 +33,23 @@ isFirstVisit = ()->
 
 markVisisted = ()->
   return LS.setItem("visited:"+location.href,'true')
+
+getGA = () ->
+  return window.ga ||
+          () ->
+            if _config.gaTrackingID != false
+              console.info "Track:"+[].join.call(arguments,',')+"\nPlease set config.gaTrackingID to enable it."
+
+# Send google analytics
+track = {
+  pageview: ()->
+    getGA()('send', 'pageview')
+  fail: (link)->
+    getGA()('send', 'event', 'mirror', 'fail',misc.parseUrl(link)[1])
+  redirect: (from,to)->
+    getGA()('send', 'event', 'mirror', 'redirect',misc.parseUrl(from)[1] + ' > ' + misc.parseUrl(to)[1])
+}
+
 
 class Client
   constructor: () ->
@@ -57,6 +74,10 @@ class Client
       else
         @altMirrorLinks.push link
 
+    if !@currentMirror
+      @currentMirror = location.protocol + '//' + location.host + '/'
+
+
 
 
   run:() ->
@@ -67,6 +88,7 @@ class Client
 
   showPage: ()->
     markVisisted()
+    track.pageview()
     html = @rewriter.result()
     writeDocument = ()->
                       document.open()
@@ -83,7 +105,8 @@ class Client
   _fetchPage:()->
     fail = ()=>
               warn 'Current mirror is not available!\nTrying other mirrors...Please wait...'
-              testOtherMirrors(@altMirrorLinks)
+              track.fail(@currentMirror)
+              testOtherMirrors(@altMirrorLinks,@currentMirror)
 
     return fail()  if isBlocked(@currentMirror)
 
@@ -107,14 +130,17 @@ chooseMirror = (url)->
   chooseMirror = noop
   location.replace(url + location.href.replace(/^https?:\/\/[^\/]+\//,''))
 
-testOtherMirrors= (altMirrorLinks)->
+testOtherMirrors= (altMirrorLinks,currentMirror)->
     return noAvailableMirror() if !altMirrorLinks.length
     count= altMirrorLinks.length;
     pingQueue = altMirrorLinks.map (url)->
       succ = ()->
         pingQueue.forEach (xhr)-> xhr && xhr.abort() # only choose the fastest mirror
-        chooseMirror(url)
+        track.redirect(currentMirror,url)
+        setTimeout (()-> chooseMirror(url)), 2000 # delay redirect to send GA track
+
       fail = ()->
+        track.fail(url)
         count--
         noAvailableMirror() if !count
 

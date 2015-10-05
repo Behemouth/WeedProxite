@@ -1,6 +1,7 @@
 # Site
 Config = require './Config'
 fs = require 'fs'
+util = require 'util'
 path = require 'path'
 url = require 'url'
 # Set = require 'Set'
@@ -147,7 +148,7 @@ class Site extends Server
   ###
   @init: (root,override) ->
     # copyFolder __dirname+"/tpl",root,override
-    files = ['config.js','main.js','main.html']
+    files = ['config.js','main.js']
     # staticDir = root + '/static'
     # fs.mkdirSync staticDir  if !fs.existsSync(staticDir)
     # if fs.existsSync(staticDir)
@@ -201,9 +202,13 @@ class Site extends Server
           file = path.join(@root,config.mirrorLinksFile)
         config.mirrorLinksFile = file
 
+      if process.env.WEED_PROXITE_DEBUG
+        config.debug = true
+
       @config = new Config(config)
       @config.root = @root
-      updateMirrorLinks(@config)
+      if @config.mirrorLinksFile
+        updateMirrorLinks(@config)
       if @config.mirrorLinksFileRefresh
         _refresh = ()=> updateMirrorLinks(@config)
         t = @config.mirrorLinksFileRefresh * 1000 * 60
@@ -337,6 +342,16 @@ class Site extends Server
     @use {
       before:(req,res,next,opt) ->
         req.localConfig = config = misc.clone originConfig
+
+        if req.headers.origin # set access rules only when CORS request Origin header present
+          res.setHeader('Access-Control-Allow-Origin',req.origin)
+          res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept')
+
+        cacheCtrl = config.cacheControl
+        res.setHeader 'Cache-Control', ('max-age=' + cacheCtrl.maxAge +
+                                        ', stale-while-revalidate=' + cacheCtrl.staleWhileRevalidate +
+                                        ', stale-if-error=' + cacheCtrl.staleIfError)
+
         return _this._handleProxyAPI(req,res) if config.isProxyAPI req.url
 
         result = revertParseUrl(opt.path,config)
@@ -355,15 +370,6 @@ class Site extends Server
         opt.headers.host = opt.host = target.host
         opt.protocol = target.protocol
         opt.path = target.path || '/'
-
-        if req.headers.origin # set access rules only when CORS request Origin header present
-          res.setHeader('Access-Control-Allow-Origin',req.origin)
-          res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept')
-
-        cacheCtrl = config.cacheControl
-        res.setHeader 'Cache-Control', ('max-age=' + cacheCtrl.maxAge +
-                                        ', stale-while-revalidate=' + cacheCtrl.staleWhileRevalidate +
-                                        ', stale-if-error=' + cacheCtrl.staleIfError)
 
         res.setHeader(k,v) for k,v of secureHeaders
         for h in ['origin','referer']
@@ -395,11 +401,20 @@ class Site extends Server
   _initTemplates: () ->
     tpl = {}
     mainTpl = 'main.html'
+    clientJSFile = path.join(@root,'client.js')
+    includeClientJSPlaceholder = '<!--#INCLUDE_CLIENT_JS#-->'
     if fs.existsSync(path.join(@root,mainTpl))
-      tpl.main = ejs.compile(fs.readFileSync(path.join(@root,mainTpl),{encoding:'utf-8'}))
+      tplFile = path.join(@root,mainTpl)
     else
-      tpl.main = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',mainTpl),{encoding:'utf-8'}))
+      tplFile = path.join(__dirname,'tpl',mainTpl)
 
+    tplStr = fs.readFileSync(tplFile,{encoding:'utf-8'})
+
+    if fs.existsSync(clientJSFile)
+      clientJS = fs.readFileSync(clientJSFile,{encoding:'utf-8'})
+      tplStr = tplStr.replace(includeClientJSPlaceholder,clientJS)
+
+    tpl.main = ejs.compile(tplStr)
     manifestTpl = 'manifest.appcache'
     tpl.manifest = ejs.compile(fs.readFileSync(path.join(__dirname,'tpl',manifestTpl),{encoding:'utf-8'}))
     @config._tpl = tpl

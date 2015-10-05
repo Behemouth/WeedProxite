@@ -1,11 +1,11 @@
 #!/bin/bash
 
 CUR_DIR=`dirname $(realpath "$0")`;
-LIB_ROOT=`realpath "$CUR_DIR/../"`;
-export NODE_PATH="$LIB_ROOT/..:$LIB_ROOT/node_modules/:$NODE_PATH";
+ROOT=`realpath "$CUR_DIR/../"`;
+export NODE_PATH="$ROOT/..:$ROOT/node_modules/:$NODE_PATH";
 
 
-cd $LIB_ROOT;
+cd $ROOT;
 export PATH="$(npm bin):$PATH";
 cd -;
 nodejs='nodejs'
@@ -15,14 +15,15 @@ fi;
 
 if echo "$@"|grep -e '--debug';then
   if which nodemon>/dev/null 2>&1; then
+    # coffee --watch --compile --bare --no-header "$ROOT" > /dev/null &
     # Use nodemon for `run --debug`
-    nodemon --watch "$LIB_ROOT" -e js "$LIB_ROOT/bin/cmd.js" "$@"
+    nodemon --delay 1 --watch "$ROOT/lib" --watch . -e coffee,html,json -i "$ROOT/**/*.js" "$ROOT/bin/cmd.js" "$@"
   else
     echo 'You need to run "npm install nodemon -g" by yourself first.';
     exit 1;
   fi;
 else
-  $nodejs "$LIB_ROOT/bin/cmd.js" "$@"
+  $nodejs "$ROOT/bin/cmd.js" "$@"
 fi;
 
 

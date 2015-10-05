@@ -18,6 +18,7 @@ module.exports = (site) ->
       req.localConfig.enableShareWidget = false;
       # req.localConfig.disableRewriteHTML = true;
       req.localConfig.enableAppcache = false;
+      req.localConfig.gaTrackingID = false;
       next();
   }
 
