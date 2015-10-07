@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 exec = require("child_process").exec;
-//nodejs = '"' + process.execPath + '"  ';
+//nodejs = '"' + process.execPath + '"  '; //not work on Windows, who know why?
 nodejs = 'node ';
 exec( nodejs + ' ./node_modules/coffee-script/bin/coffee --compile --bare --no-header .', require_compile);
 
