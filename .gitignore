@@ -5,4 +5,5 @@
 *.js.map
 *.js
 !bin/proxite.js
+!bin/postinstall.js
 /node_modules/
