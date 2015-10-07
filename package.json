@@ -1,6 +1,6 @@
 {
   "name": "WeedProxite",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Run Mirror Proxy Site Like Weed!",
   "main": "index",
   "preferGlobal":true,
@@ -43,7 +43,7 @@
     "name": "Behemouth"
   },
   "scripts": {
-    "postinstall":"./bin/postinstall.js",
+    "postinstall":"node ./bin/postinstall.js",
     "test": "tap test/*.js"
   },
   "license": "MIT"
