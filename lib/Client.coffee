@@ -34,19 +34,36 @@ isFirstVisit = ()->
 markVisisted = ()->
   return LS.setItem("visited:"+location.href,'true')
 
+
+
+warnNoGA = () ->
+  console.info "Track:"+[].join.call(arguments,',')+"\nPlease set config.gaTrackingID to enable it."
+
+_ga = window.ga
+_freezedGA = false
+freezeGA  = () ->
+  _freezedGA = true
+  _ga = window.ga
+
 getGA = () ->
-  return window.ga ||
-          () ->
-            if _config.gaTrackingID != false
-              console.info "Track:"+[].join.call(arguments,',')+"\nPlease set config.gaTrackingID to enable it."
+  return _ga if _ga && _freezedGA
+  return window.ga if window.ga && not _freezedGA
+  if _config.gaTrackingID != false
+    return warnNoGA
+  else
+    return noop
+
 
 # Send google analytics
 track = {
   pageview: ()->
+    #console.trace('GA:pageview')
     getGA()('send', 'pageview')
   fail: (link)->
+    #console.info('GA:fail')
     getGA()('send', 'event', 'mirror', 'fail',misc.parseUrl(link)[1])
   redirect: (from,to)->
+    #console.info('GA:redirect')
     getGA()('send', 'event', 'mirror', 'redirect',misc.parseUrl(from)[1] + ' > ' + misc.parseUrl(to)[1])
 }
 
@@ -89,18 +106,19 @@ class Client
   showPage: ()->
     markVisisted()
     track.pageview()
+    freezeGA()
     html = @rewriter.result()
     writeDocument = ()->
                       document.open()
                       document.write(html)
                       close = () -> document.close()
-                      setTimeout(close,10)
+                      setTimeout(close,50)
 
 
     if document.readyState !='complete'
-      window.onload = ()-> setTimeout writeDocument,10
+      window.onload = ()-> setTimeout writeDocument,50
     else
-      setTimeout writeDocument,10
+      setTimeout writeDocument,50
 
   _fetchPage:()->
     fail = ()=>
@@ -136,8 +154,9 @@ testOtherMirrors= (altMirrorLinks,currentMirror)->
     pingQueue = altMirrorLinks.map (url)->
       succ = ()->
         pingQueue.forEach (xhr)-> xhr && xhr.abort() # only choose the fastest mirror
+        freezeGA()
         track.redirect(currentMirror,url)
-        setTimeout (()-> chooseMirror(url)), 2000 # delay redirect to send GA track
+        setTimeout (()-> chooseMirror(url)), 1000 # delay redirect to send GA track
 
       fail = ()->
         track.fail(url)
