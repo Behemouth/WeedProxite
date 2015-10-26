@@ -409,10 +409,12 @@ class Site extends Server
       tplFile = path.join(__dirname,'tpl',mainTpl)
 
     tplStr = fs.readFileSync(tplFile,{encoding:'utf-8'})
+    clientJS = ""
 
     if fs.existsSync(clientJSFile)
       clientJS = fs.readFileSync(clientJSFile,{encoding:'utf-8'})
-      tplStr = tplStr.replace(includeClientJSPlaceholder,clientJS)
+
+    tplStr = tplStr.replace(includeClientJSPlaceholder,clientJS)
 
     tpl.main = ejs.compile(tplStr)
     manifestTpl = 'manifest.appcache'
