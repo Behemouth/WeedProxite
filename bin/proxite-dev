@@ -23,7 +23,7 @@ if echo "$@"|grep -e '--debug';then
     exit 1;
   fi;
 else
-  $nodejs "$ROOT/bin/cmd.js" "$@"
+  $nodejs --expose-gc "$ROOT/bin/cmd.js" "$@"
 fi;
 
 

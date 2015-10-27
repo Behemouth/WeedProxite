@@ -21,6 +21,10 @@ Cookies = require 'cookies'
 crypto = require 'crypto'
 CRYPTO_ALGORITHM = 'AES-256-CTR'
 
+packageMeta = JSON.parse(fs.readFileSync(__dirname + '/../package.json'))
+
+progVersion = packageMeta.version
+
 # Special rank to skip
 RESERVED_RANK = 9
 
@@ -675,7 +679,34 @@ ProxiteAPI = {
     body = config._tpl.manifest({config:config})
     return res.end(body)
   'status': (req,res)->
-    return badRequest(res,'Status API not implemented yet!')
+    config = req.localConfig
+    accept = req.headers.accept || ''
+    info = {
+      version:{
+        WeedProxite: progVersion,
+        Node: process.version,
+        AppCache: config.version
+      },
+      memoryUsage: process.memoryUsage(),
+      site:{
+        config: config.toClient()
+      }
+    }
+    if ~accept.indexOf('json')
+      ct = 'application/json'
+    else
+      ct = 'text/plain'
+
+    body = JSON.stringify(info,null,'  ')
+
+    res.writeHead(200,{
+      'Cache-Control':'max-age=0',
+      'Content-Type':ct,
+    })
+    res.end(body)
+    # gc()
+
+
 }
 
 
