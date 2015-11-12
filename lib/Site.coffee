@@ -31,6 +31,15 @@ RESERVED_RANK = 9
 _USER_RANK_COOKIE_NAME = 'weedproxite_urc'
 
 
+process.on  'SIGUSR2',
+            () ->
+              if global.gc
+                console.log("Doing GC...")
+                global.gc()
+              else
+                console.log("GC is not exposed.")
+
+
 encrypt = (text,password) ->
   cipher = crypto.createCipher(CRYPTO_ALGORITHM,password)
   crypted = cipher.update(text,'utf8','hex')
